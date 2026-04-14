@@ -1,0 +1,19 @@
+# --- Core AI & Deep Learning ---
+torch                # Primary framework for neural network architecture
+torchvision          # Utilities for image datasets and pre-trained models
+torchaudio           # Support for audio processing (included in the stack)
+
+# --- Data Manipulation & Math ---
+numpy                # Handling large, multi-dimensional arrays and matrices
+pandas               # Data structures and CSV manipulation for labels
+
+# --- Computer Vision & Image Processing ---
+opencv-python        # Real-time image processing and computer vision tasks
+matplotlib           # Plotting learning curves and Grad-CAM visualizations
+albumentations       # Advanced image augmentation to improve model robustness
+grad-cam             # Explainable AI (XAI) for model interpretability
+
+# --- Deployment & API (The "Full-Stack" Bridge) ---
+fastapi              # Modern, high-performance web framework for building APIs
+uvicorn              # ASGI server implementation to run the FastAPI app
+python-multipart     # Allows the API to receive image/file uploads
