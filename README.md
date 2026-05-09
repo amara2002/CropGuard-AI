@@ -287,5 +287,3 @@ GitHub: https://github.com/amara2002
 # 📄 License
 
 This project is licensed under the MIT License.
-=======
-CropGuard AI: Explainable Computer Vision for Agricultural Diagnostics
