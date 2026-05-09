@@ -1,0 +1,94 @@
+# =====================
+# Dependencies
+# =====================
+node_modules/
+.pnpm-store/
+
+# =====================
+# Build outputs
+# =====================
+dist/
+build/
+*.dist
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# =====================
+# Environment variables
+# =====================
+.env
+.env.*
+!.env.example
+
+# =====================
+# Uploads / user files 
+# =====================
+uploads/
+public/uploads/
+
+# =====================
+# Python / AI / ML
+# =====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pycache
+*.ipynb_checkpoints/
+
+# ML models 
+*.h5
+
+# To this (only ignore in Python cache directories):
+__pycache__/*.pt
+__pycache__/*.pth
+
+# =====================
+# IDE and editor
+# =====================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =====================
+# OS files
+# =====================
+.DS_Store
+Thumbs.db
+
+# =====================
+# Logs
+# =====================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# =====================
+# Coverage
+# =====================
+coverage/
+.nyc_output/
+
+# =====================
+# Database
+# =====================
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================
+# Temporary files
+# =====================
+tmp/
+temp/
+
+# =====================
+# TypeScript
+# =====================
+*.tsbuildinfo
