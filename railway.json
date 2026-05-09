@@ -3,7 +3,8 @@
     "builder": "nixpacks",
     "buildCommand": "pnpm install --no-frozen-lockfile && pnpm build",
     "config": {
-      "provider": "node"
+      "provider": "node",
+      "nodeVersion": "22"
     }
   },
   "deploy": {
