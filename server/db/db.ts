@@ -13,7 +13,9 @@ if (!connectionString) {
 const client = postgres(connectionString, {
   max: 10,
   connect_timeout: 10,
-  ssl: false,   // 👈 No SSL needed for local PostgreSQL
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 export const db = drizzle(client, { schema });
