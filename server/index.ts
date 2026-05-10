@@ -84,7 +84,7 @@ app.use((_req, res) => {
 });
 
 // Start server on fixed port (Vite proxies to this)
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`\n🌿 CropGuard API    →  http://localhost:${PORT}`);
   console.log(`📡 tRPC endpoint    →  http://localhost:${PORT}/api/trpc`);
