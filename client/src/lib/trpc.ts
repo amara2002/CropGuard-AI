@@ -29,7 +29,9 @@ export function createTRPCClient() {
   return trpc.createClient({
     links: [
       httpBatchLink({
-        url: "http://localhost:3001/api/trpc",  // Direct connection
+        url: import.meta.env.VITE_API_URL
+          ? `${import.meta.env.VITE_API_URL}/api/trpc`
+          : "http://localhost:3001/api/trpc",
         headers() {
           const token = getToken();
           return token ? { Authorization: `Bearer ${token}` } : {};
