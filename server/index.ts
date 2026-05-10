@@ -20,7 +20,11 @@ const app = express();
 
 // CORS – allow Vite dev server
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:5173"],
+  origin: [
+    "http://localhost:3000", 
+    "http://localhost:5173",
+    "https://crop-guard-ai-nu.vercel.app"
+  ],
   credentials: true,
 }));
 
