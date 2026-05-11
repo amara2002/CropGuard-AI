@@ -7,12 +7,15 @@ import { eq } from "drizzle-orm";
 
 const router = express.Router();
 
-// Test endpoint
+// TEST ENDPOINT 
 router.get("/ping", (req, res) => {
   res.json({ message: "Chat route is working!", timestamp: new Date().toISOString() });
 });
 
 // Initialize Gemini
+if (!ENV.geminiApiKey || ENV.geminiApiKey === "") {
+  console.error("❌ GEMINI_API_KEY is not set on Render!");
+}
 const genAI = new GoogleGenerativeAI(ENV.geminiApiKey);
 
 // GET chat history
@@ -42,11 +45,8 @@ router.post("/chat", async (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
-  console.log("📨 Chat request received:", { 
-    message: message.substring(0, 50), 
-    language, 
-    userId 
-  });
+  // Log that we received the request
+  console.log("📨 Chat request received:", { message: message.substring(0, 50), language, userId });
 
   const languageMap: Record<string, string> = {
     en: "English", fr: "French", sw: "Swahili", lg: "Luganda",
@@ -64,16 +64,19 @@ router.post("/chat", async (req, res) => {
       });
     }
 
-    // Gemini Model
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    // Check if API key exists
+    if (!ENV.geminiApiKey) {
+      console.error("❌ GEMINI_API_KEY is missing!");
+      throw new Error("API key not configured");
+    }
+
+    console.log("🤖 Calling Gemini API...");
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
     
-    const prompt = `You are CropGuard AI, an expert agricultural assistant specializing in African smallholder farming.
-CRITICAL: Respond in ${langName}. Keep responses concise, practical, and accessible to farmers.
+    const prompt = `You are CropGuard AI, an expert agricultural assistant. Respond in ${langName}. Keep responses concise and practical.
 
-Farmer's question: ${message}
-Provide a helpful, practical response focusing on actionable advice.`;
+Farmer's question: ${message}`;
 
-    console.log("🤖 Calling Gemini API with gemini-1.5-flash...");
     const result = await model.generateContent(prompt);
     const response = result.response.text();
     console.log("✅ Gemini response received");
@@ -92,8 +95,9 @@ Provide a helpful, practical response focusing on actionable advice.`;
     
   } catch (err: any) {
     console.error("❌ Chat error:", err.message);
+    if (err.response) console.error("  Response data:", err.response.data);
     
-    let fallback = "I'm having trouble connecting right now. Please try again in a moment.";
+    const fallback = "I'm having trouble connecting right now. Please try again in a moment.";
     return res.status(200).json({ response: fallback });
   }
 });
