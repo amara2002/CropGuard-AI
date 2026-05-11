@@ -188,7 +188,10 @@ async function triggerAnalysis(
   cropType: string,
   language: string,
 ) {
-  const url = `http://localhost:${ENV.port}/api/scan/analyze`;
+  const baseUrl = process.env.RENDER_EXTERNAL_URL || 
+                  process.env.RAILWAY_PUBLIC_DOMAIN ||
+                  `http://localhost:${process.env.PORT || 3001}`;
+  const url = `${baseUrl}/api/scan/analyze`;
   const res = await fetch(url, {
     method:  "POST",
     headers: { "Content-Type": "application/json" },
