@@ -29,7 +29,7 @@ export async function getSmartRecommendations(
   const langName = languageMap[language || "en"] || "English";
 
   const model = genAI.getGenerativeModel({
-    model: "gemini-3-flash-preview",
+    model: "gemini-1.5-flash",
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.4,
