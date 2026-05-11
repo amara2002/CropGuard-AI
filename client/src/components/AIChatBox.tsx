@@ -36,6 +36,9 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Get API URL from environment variable
+  const apiUrl = import.meta.env.VITE_API_URL || "";
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -57,7 +60,8 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
 
   const loadHistory = async () => {
     try {
-      const res = await fetch(`/api/chat/history?userId=${user?.id}`);
+      const res = await fetch(`${apiUrl}/api/chat/history?userId=${user?.id}`);
+      if (!res.ok) throw new Error("Failed to load history");
       const history = await res.json();
       if (history && history.length > 0) {
         const formatted = history.map((h: any) => ({
@@ -75,7 +79,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
   const handleClearHistory = async () => {
     if (!confirm("Delete all chat history? This cannot be undone.")) return;
     try {
-      await fetch(`/api/chat/history?userId=${user?.id}`, { method: "DELETE" });
+      await fetch(`${apiUrl}/api/chat/history?userId=${user?.id}`, { method: "DELETE" });
       setMessages([{ role: "assistant", content: getWelcomeMessage(language) }]);
     } catch (err) {
       console.error("Failed to clear history:", err);
@@ -91,7 +95,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     setLoading(true);
 
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch(`${apiUrl}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -101,12 +105,15 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
         }),
       });
 
+      if (!res.ok) throw new Error("Chat request failed");
+      
       const data = await res.json();
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: data.response },
       ]);
-    } catch {
+    } catch (error) {
+      console.error("Chat error:", error);
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: getErrorMessage(language) },
