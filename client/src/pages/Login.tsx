@@ -32,7 +32,7 @@ export default function Login() {
       setToken(data.token);
       toast.success("Signed in successfully!");
       // Force a full page reload to the dashboard – ensures useAuth picks up the new token
-      setLocation("/dashboard");
+      window.location.href = "/dashboard";
     },
     onError: (err) => {
       if (err.message.includes("Google Sign-In")) {

@@ -80,7 +80,7 @@ export default function Signup() {
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
       toast.success("Profile Synchronized Successfully.");
-      setTimeout(() => setLocation("/dashboard"), 800);
+      setTimeout(() => (window.location.href = "/dashboard"), 800);
     },
     onError: (err) => {
       toast.error(err.message || "Network Error: Failed to sync.");
