@@ -86,7 +86,8 @@ export default function Dashboard() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const uploadResponse = await fetch("/api/upload", {
+      const apiUrl = import.meta.env.VITE_API_URL || "";
+      const uploadResponse = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
         body: formData,
       });
