@@ -145,6 +145,9 @@ export default function Scanner() {
   const [isUploading, setIsUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
 
+  // Get API URL from environment variable
+  const apiUrl = import.meta.env.VITE_API_URL || "";
+
   const createScan = trpc.scans.create.useMutation({
     onSuccess: (data) => {
       console.log("✅ Scan created with ID:", data.scanId);
@@ -204,12 +207,16 @@ export default function Scanner() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch("/api/upload", {
+      // Use absolute URL with apiUrl
+      const res = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${errorText}`);
+      }
 
       const { imageUrl, imageKey } = await res.json();
       console.log("📁 Image uploaded:", imageKey);
