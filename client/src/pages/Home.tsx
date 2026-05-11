@@ -55,7 +55,8 @@ export default function Home() {
   });
 
   useEffect(() => {
-    fetch("/api/stats")
+    const apiUrl = import.meta.env.VITE_API_URL || "";
+    fetch(`${apiUrl}/api/stats`)
       .then((r) => r.json())
       .then((data) => setStats(data))
       .catch(() => {});
