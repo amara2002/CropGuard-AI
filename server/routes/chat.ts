@@ -7,13 +7,18 @@ import { eq } from "drizzle-orm";
 
 const router = express.Router();
 
-// Initialize Gemini with API key
+// TEST ENDPOINT 
+router.get("/ping", (req, res) => {
+  res.json({ message: "Chat route is working!", timestamp: new Date().toISOString() });
+});
+
+// Initialize Gemini
 if (!ENV.geminiApiKey || ENV.geminiApiKey === "") {
-  console.error("❌ GEMINI_API_KEY is missing from environment variables!");
+  console.error("❌ GEMINI_API_KEY is not set on Render!");
 }
 const genAI = new GoogleGenerativeAI(ENV.geminiApiKey);
 
-// GET chat history for a user
+// GET chat history
 router.get("/chat/history", async (req, res) => {
   const userId = req.query.userId as string;
   if (!userId) return res.status(400).json({ error: "userId required" });
@@ -25,10 +30,9 @@ router.get("/chat/history", async (req, res) => {
       .where(eq(chatMessages.userId, parseInt(userId)))
       .orderBy(chatMessages.createdAt)
       .limit(100);
-
     res.json(messages);
-  } catch (err: any) {
-    console.error("❌ History error:", err.message);
+  } catch (err) {
+    console.error("History error:", err);
     res.status(500).json({ error: "Failed to fetch history" });
   }
 });
@@ -41,8 +45,11 @@ router.post("/chat", async (req, res) => {
     return res.status(400).json({ error: "Message is required" });
   }
 
+  // Log that we received the request
+  console.log("📨 Chat request received:", { message: message.substring(0, 50), language, userId });
+
   const languageMap: Record<string, string> = {
-    en: "English", fr: "French", sw: "Swahili", lg: "Luganda", hi: "Hindi", es: "Spanish",
+    en: "English", fr: "French", sw: "Swahili", lg: "Luganda",
   };
   const langName = languageMap[language] || "English";
 
@@ -57,23 +64,22 @@ router.post("/chat", async (req, res) => {
       });
     }
 
-    // Log API key status (first few chars only for security)
-    const apiKeyPrefix = ENV.geminiApiKey ? ENV.geminiApiKey.substring(0, 10) + "..." : "MISSING";
-    console.log(`🤖 Chat request - Language: ${langName}, API Key: ${apiKeyPrefix}`);
+    // Check if API key exists
+    if (!ENV.geminiApiKey) {
+      console.error("❌ GEMINI_API_KEY is missing!");
+      throw new Error("API key not configured");
+    }
 
-    // Use the same model that works locally
-    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    console.log("🤖 Calling Gemini API...");
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
     
-    const prompt = `You are CropGuard AI, an expert agricultural assistant specializing in African smallholder farming.
-CRITICAL: Respond in ${langName}. Keep responses concise, practical, and accessible to farmers.
+    const prompt = `You are CropGuard AI, an expert agricultural assistant. Respond in ${langName}. Keep responses concise and practical.
 
-Farmer's question: ${message}
-Provide a helpful, practical response focusing on actionable advice.`;
+Farmer's question: ${message}`;
 
-    console.log(`📤 Sending to Gemini (${message.length} chars)...`);
     const result = await model.generateContent(prompt);
     const response = result.response.text();
-    console.log(`✅ Response received (${response.length} chars)`);
+    console.log("✅ Gemini response received");
 
     // Save assistant response if logged in
     if (userId) {
@@ -88,36 +94,15 @@ Provide a helpful, practical response focusing on actionable advice.`;
     return res.status(200).json({ response });
     
   } catch (err: any) {
-    // Log detailed error
-    console.error("❌ Chat error:");
-    console.error("  Message:", err.message);
-    if (err.status) console.error("  Status:", err.status);
-    if (err.response?.data) console.error("  Response:", JSON.stringify(err.response.data, null, 2));
-
-    // Fallback responses in multiple languages
-    const fallbacks: Record<string, string> = {
-      en: "I apologize, but I'm having trouble connecting right now. Please try again in a moment. For immediate help, check your local agricultural extension office.",
-      fr: "Je suis désolé, j'ai des difficultés à me connecter. Veuillez réessayer dans un instant.",
-      sw: "Samahani, nina shida kuunganisha. Tafadhali jaribu tena baada ya muda.",
-      lg: "Nsonyiwa, nina buzibu okweyunga. Nsaba ogezeeko oluvanyuma.",
-    };
-
-    const fallbackResponse = fallbacks[language] || fallbacks.en;
+    console.error("❌ Chat error:", err.message);
+    if (err.response) console.error("  Response data:", err.response.data);
     
-    if (userId) {
-      await db.insert(chatMessages).values({
-        userId,
-        role: "assistant",
-        content: fallbackResponse,
-        language,
-      });
-    }
-
-    return res.status(200).json({ response: fallbackResponse });
+    const fallback = "I'm having trouble connecting right now. Please try again in a moment.";
+    return res.status(200).json({ response: fallback });
   }
 });
 
-// DELETE chat history for a user
+// DELETE chat history
 router.delete("/chat/history", async (req, res) => {
   const userId = req.query.userId as string;
   if (!userId) return res.status(400).json({ error: "userId required" });
@@ -126,7 +111,7 @@ router.delete("/chat/history", async (req, res) => {
     await db.delete(chatMessages).where(eq(chatMessages.userId, parseInt(userId)));
     res.json({ success: true });
   } catch (err) {
-    console.error("❌ Delete error:", err);
+    console.error("Delete error:", err);
     res.status(500).json({ error: "Failed to delete history" });
   }
 });
