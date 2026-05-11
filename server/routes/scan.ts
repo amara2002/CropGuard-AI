@@ -45,9 +45,12 @@ router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No image provided" });
 
-    const imageUrl = `http://localhost:3001/uploads/${req.file.filename}`;
-    const imageKey = req.file.filename;
+    const host =
+      process.env.RENDER_EXTERNAL_URL ||
+      `http://localhost:${process.env.PORT || 3001}`;
+    const imageUrl = `${host}/uploads/${req.file.filename}`;
 
+    const imageKey = req.file.filename;
     return res.status(200).json({ imageUrl, imageKey });
   } catch (err: any) {
     console.error("❌ Upload error:", err.message);
