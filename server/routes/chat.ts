@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ENV } from "../_core/env.js";
 import { db } from "../db/db.js";
 import { chatMessages } from "../db/schema.js";
-import { eq, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 const router = express.Router();
 const genAI = new GoogleGenerativeAI(ENV.geminiApiKey);
@@ -49,7 +49,9 @@ router.post("/chat", async (req, res) => {
       });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Gemini Model
+    const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
+    
     const prompt = `
 You are CropGuard AI, an expert agricultural assistant specializing in African smallholder farming.
 CRITICAL: Respond in ${langName}. Keep responses concise, practical, and accessible to farmers.
