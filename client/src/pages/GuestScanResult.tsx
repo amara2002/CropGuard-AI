@@ -103,6 +103,9 @@ export default function GuestScanResult() {
   const [error, setError] = useState("");
   const [language, setLanguage] = useState("en");
 
+  // Get API URL from environment
+  const apiUrl = import.meta.env.VITE_API_URL || "";
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const imageUrl = params.get("img");
@@ -116,10 +119,15 @@ export default function GuestScanResult() {
       return;
     }
 
-    fetch("/api/scan/analyze-guest", {
+    // Use absolute URL with apiUrl
+    fetch(`${apiUrl}/api/scan/analyze-guest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl, cropType, language: lang }),
+      body: JSON.stringify({ 
+        imageUrl: decodeURIComponent(imageUrl), 
+        cropType, 
+        language: lang 
+      }),
     })
       .then((r) => r.json())
       .then((data) => {
@@ -130,11 +138,12 @@ export default function GuestScanResult() {
         }
         setLoading(false);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Guest analysis error:", err);
         setError(tl("analysisFailed", lang));
         setLoading(false);
       });
-  }, []);
+  }, [apiUrl]);
 
   if (loading) {
     return (
@@ -150,9 +159,10 @@ export default function GuestScanResult() {
   if (error || !result) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
+        <div className="text-center max-w-md p-6">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <p className="text-foreground font-semibold mb-4">{error || tl("analysisFailed", language)}</p>
+          <p className="text-muted-foreground text-sm mb-6">The AI service might be starting up. Please wait a moment and try again.</p>
           <Button onClick={() => setLocation("/")}>{tl("goHome", language)}</Button>
         </div>
       </div>
