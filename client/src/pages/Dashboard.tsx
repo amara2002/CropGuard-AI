@@ -17,8 +17,12 @@ import {
   Camera,
   MessageCircle,
   X,
+  Menu,
+  Home,
+  Scan,
+  BarChart3,
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -30,6 +34,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { motion, AnimatePresence } from "framer-motion";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -38,16 +43,26 @@ export default function Dashboard() {
   const [uploading, setUploading] = useState(false);
   const [cropType, setCropType] = useState("");
   const [cropVariety, setCropVariety] = useState("");
-  const [language, setLanguage] = useState<"en" | "hi" | "es">("en");
+  const [language, setLanguage] = useState<"en" | "fr" | "sw" | "lg">("en");
   const [chatOpen, setChatOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
-  // Fetch recent scans for the list
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  // Fetch recent scans
   const { data: scans, isLoading: scansLoading } = trpc.scans.list.useQuery({
     limit: 10,
     offset: 0,
   });
 
-  // Fetch accurate counts from the backend
+  // Fetch counts
   const { data: counts } = trpc.scans.count.useQuery();
 
   const createScanMutation = trpc.scans.create.useMutation({
@@ -114,40 +129,79 @@ export default function Dashboard() {
     }
   };
 
-  // Use backend counts (accurate for ALL scans)
   const totalScans = counts?.total || 0;
   const completedScans = counts?.completed || 0;
   const pendingScans = counts?.pending || 0;
   const failedScans = counts?.failed || 0;
 
-  // Animation variants – only opacity changes, no translation
   const fadeIn = {
     initial: { opacity: 0 },
     animate: { opacity: 1 },
     transition: { duration: 0.2 },
   };
 
+  const menuItems = [
+    { icon: Home, label: "Dashboard", path: "/dashboard" },
+    { icon: Scan, label: "Quick Scan", path: "/scanner" },
+    { icon: BarChart3, label: "Analytics", path: "/analytics" },
+    { icon: Settings, label: "Settings", path: "/profile-settings" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header - Mobile Optimized */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="container py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-emerald-600/10 flex items-center justify-center">
-              <Sprout className="w-5 h-5 text-emerald-600" />
-            </div>
-            <div>
-              <h1 className="text-xl md:text-2xl font-bold text-foreground">
-                Welcome back, {user?.name?.split(" ")[0] || "Farmer"}!
-              </h1>
-              <p className="text-xs text-muted-foreground hidden md:block">
-                Analyze crops and track disease history
-              </p>
+        <div className="container px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isMobile && (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="w-64 p-0">
+                  <div className="flex flex-col h-full">
+                    <div className="p-4 border-b">
+                      <div className="flex items-center gap-2">
+                        <Sprout className="w-6 h-6 text-emerald-600" />
+                        <span className="font-bold text-lg">CropGuard AI</span>
+                      </div>
+                    </div>
+                    <div className="flex-1 p-4 space-y-2">
+                      {menuItems.map((item) => (
+                        <button
+                          key={item.path}
+                          onClick={() => {
+                            setLocation(item.path);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
+                        >
+                          <item.icon className="w-4 h-4" />
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+            <div className="flex items-center gap-2 md:gap-3">
+              <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-600/10 flex items-center justify-center">
+                <Sprout className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" />
+              </div>
+              <div>
+                <h1 className="text-sm md:text-xl font-bold text-foreground">
+                  Welcome back, {user?.name?.split(" ")[0] || "Farmer"}!
+                </h1>
+                <p className="hidden md:block text-xs text-muted-foreground">
+                  Analyze crops and track disease history
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* AI Assistant Toggle Button */}
+          <div className="flex items-center gap-1 md:gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -170,9 +224,9 @@ export default function Dashboard() {
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-9 w-9">
-                    <AvatarFallback className="bg-emerald-600 text-white font-bold">
+                <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 md:h-9 md:w-9">
+                  <Avatar className="h-7 w-7 md:h-9 md:w-9">
+                    <AvatarFallback className="bg-emerald-600 text-white font-bold text-xs md:text-sm">
                       {user?.name
                         ?.split(" ")
                         .map((n) => n[0])
@@ -212,23 +266,23 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="container py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="container px-4 py-6">
+        <div className="grid lg:grid-cols-3 gap-6">
           {/* Upload Card */}
-          <div className="lg:col-span-1">
-            <motion.div {...fadeIn} className="card-elevated p-6 sticky top-20">
-              <h2 className="text-xl font-bold text-foreground mb-4 flex items-center gap-2">
-                <Upload className="w-5 h-5 text-emerald-600" />
+          <div className="lg:col-span-1 order-2 lg:order-1">
+            <motion.div {...fadeIn} className="card-elevated p-5 sticky top-20">
+              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+                <Upload className="w-4 h-5 text-emerald-600" />
                 New Scan
               </h2>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-foreground mb-1.5">Crop Type</label>
                   <select
                     value={cropType}
                     onChange={(e) => setCropType(e.target.value)}
-                    className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
                   >
                     <option value="">Select a crop...</option>
                     <option value="Bean">Bean</option>
@@ -246,7 +300,7 @@ export default function Dashboard() {
                     value={cropVariety}
                     onChange={(e) => setCropVariety(e.target.value)}
                     placeholder="e.g., Hybrid F1"
-                    className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
                   />
                 </div>
 
@@ -254,8 +308,8 @@ export default function Dashboard() {
                   <label className="block text-xs font-medium text-foreground mb-1.5">Language</label>
                   <select
                     value={language}
-                    onChange={(e) => setLanguage(e.target.value as "en" | "hi" | "es")}
-                    className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
+                    onChange={(e) => setLanguage(e.target.value as "en" | "fr" | "sw" | "lg")}
+                    className="w-full h-10 rounded-xl border border-input bg-background px-3 text-sm focus:ring-2 focus:ring-emerald-500/20 outline-none"
                   >
                     <option value="en">English</option>
                     <option value="fr">French</option>
@@ -269,19 +323,19 @@ export default function Dashboard() {
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="w-full border-2 border-dashed border-border rounded-xl p-6 text-center hover:border-emerald-500 transition-colors disabled:opacity-50 group"
+                    className="w-full border-2 border-dashed border-border rounded-xl p-5 text-center hover:border-emerald-500 transition-colors disabled:opacity-50 group"
                   >
                     {uploading ? (
                       <>
-                        <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin text-emerald-600" />
-                        <p className="text-sm text-muted-foreground">Uploading...</p>
+                        <Loader2 className="w-5 h-5 mx-auto mb-2 animate-spin text-emerald-600" />
+                        <p className="text-xs text-muted-foreground">Uploading...</p>
                       </>
                     ) : (
                       <>
-                        <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition">
-                          <Upload className="w-6 h-6 text-emerald-600" />
+                        <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-2 group-hover:scale-110 transition">
+                          <Upload className="w-5 h-5 text-emerald-600" />
                         </div>
-                        <p className="font-medium text-foreground">Click to upload</p>
+                        <p className="font-medium text-foreground text-sm">Click to upload</p>
                         <p className="text-xs text-muted-foreground mt-1">or drag and drop</p>
                       </>
                     )}
@@ -289,50 +343,50 @@ export default function Dashboard() {
                 </div>
 
                 <p className="text-[10px] text-muted-foreground text-center">
-                  Supported formats: JPG, PNG, WebP • Max 5MB
+                  JPG, PNG, WebP • Max 5MB
                 </p>
               </div>
             </motion.div>
           </div>
 
           {/* Main Content Area */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-5 order-1 lg:order-2">
             {/* Stats Cards */}
-            <motion.div {...fadeIn} transition={{ delay: 0.05 }} className="grid grid-cols-4 gap-4">
-              <div className="card-elevated p-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <Sprout className="w-4 h-4" />
-                  <span className="text-xs uppercase tracking-wide">Total</span>
+            <motion.div {...fadeIn} transition={{ delay: 0.05 }} className="grid grid-cols-2 gap-3">
+              <div className="card-elevated p-3">
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <Sprout className="w-3 h-3" />
+                  <span className="text-[10px] uppercase tracking-wide">Total</span>
                 </div>
-                <div className="text-2xl font-bold text-foreground">{totalScans}</div>
+                <div className="text-xl font-bold text-foreground">{totalScans}</div>
               </div>
-              <div className="card-elevated p-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600" />
-                  <span className="text-xs uppercase tracking-wide">Completed</span>
+              <div className="card-elevated p-3">
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                  <span className="text-[10px] uppercase tracking-wide">Done</span>
                 </div>
-                <div className="text-2xl font-bold text-foreground">{completedScans}</div>
+                <div className="text-xl font-bold text-foreground">{completedScans}</div>
               </div>
-              <div className="card-elevated p-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <Clock className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs uppercase tracking-wide">Pending</span>
+              <div className="card-elevated p-3">
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <Clock className="w-3 h-3 text-amber-500" />
+                  <span className="text-[10px] uppercase tracking-wide">Pending</span>
                 </div>
-                <div className="text-2xl font-bold text-foreground">{pendingScans}</div>
+                <div className="text-xl font-bold text-foreground">{pendingScans}</div>
               </div>
-              <div className="card-elevated p-4">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                  <AlertTriangle className="w-4 h-4 text-red-500" />
-                  <span className="text-xs uppercase tracking-wide">Failed</span>
+              <div className="card-elevated p-3">
+                <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                  <AlertTriangle className="w-3 h-3 text-red-500" />
+                  <span className="text-[10px] uppercase tracking-wide">Failed</span>
                 </div>
-                <div className="text-2xl font-bold text-foreground">{failedScans}</div>
+                <div className="text-xl font-bold text-foreground">{failedScans}</div>
               </div>
             </motion.div>
 
             {/* Recent Scans */}
-            <motion.div {...fadeIn} transition={{ delay: 0.1 }} className="card-elevated p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Recent Scans</h3>
+            <motion.div {...fadeIn} transition={{ delay: 0.1 }} className="card-elevated p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-base font-semibold text-foreground">Recent Scans</h3>
                 {scans && scans.length > 0 && (
                   <Button variant="ghost" size="sm" onClick={() => setLocation("/scans")} className="text-xs">
                     View All <ArrowRight className="w-3 h-3 ml-1" />
@@ -341,52 +395,52 @@ export default function Dashboard() {
               </div>
 
               {scansLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
                 </div>
               ) : !scans || scans.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                    <Upload className="w-6 h-6 text-muted-foreground" />
+                <div className="text-center py-8">
+                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+                    <Upload className="w-5 h-5 text-muted-foreground" />
                   </div>
-                  <p className="text-muted-foreground mb-4">No scans yet. Upload your first crop image!</p>
+                  <p className="text-sm text-muted-foreground mb-3">No scans yet.</p>
                   <Button onClick={() => fileInputRef.current?.click()} size="sm">Start Scanning</Button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {scans.slice(0, 5).map((scan) => (
                     <motion.div
                       key={scan.id}
                       whileHover={{ scale: 1.01 }}
                       onClick={() => setLocation(`/scan/${scan.id}`)}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 hover:bg-muted/50 transition cursor-pointer"
+                      className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition cursor-pointer"
                     >
-                      <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center flex-shrink-0">
                         {scan.status === "completed" ? (
-                          <CheckCircle className="w-5 h-5 text-emerald-600" />
+                          <CheckCircle className="w-4 h-4 text-emerald-600" />
                         ) : scan.status === "pending" ? (
-                          <Clock className="w-5 h-5 text-amber-500" />
+                          <Clock className="w-4 h-4 text-amber-500" />
                         ) : (
-                          <AlertTriangle className="w-5 h-5 text-destructive" />
+                          <AlertTriangle className="w-4 h-4 text-destructive" />
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">
+                        <p className="font-medium text-foreground text-sm truncate">
                           {scan.cropType}{scan.cropVariety && ` (${scan.cropVariety})`}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-[10px] text-muted-foreground">
                           {new Date(scan.createdAt).toLocaleDateString()}
                         </p>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0 max-w-[110px]">
                         {scan.status === "completed" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-medium">
-                            {scan.detectedDisease?.split("_").join(" ") || "Healthy"}
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-medium truncate">
+                            {scan.detectedDisease?.split("_").slice(0, 2).join(" ") || "Healthy"}
                           </span>
                         ) : scan.status === "pending" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 text-xs">Processing...</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px]">Processing...</span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700 text-xs">Failed</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-50 text-red-700 text-[10px]">Failed</span>
                         )}
                       </div>
                     </motion.div>
@@ -396,39 +450,39 @@ export default function Dashboard() {
             </motion.div>
 
             {/* Quick Actions */}
-            <motion.div {...fadeIn} transition={{ delay: 0.15 }} className="grid grid-cols-3 gap-4">
-              <button onClick={() => setLocation("/scanner")} className="card-elevated p-4 text-left hover:border-emerald-500 transition group">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition">
-                    <Camera className="w-5 h-5 text-emerald-600" />
+            <motion.div {...fadeIn} transition={{ delay: 0.15 }} className="grid grid-cols-3 gap-3">
+              <button onClick={() => setLocation("/scanner")} className="card-elevated p-3 text-left hover:border-emerald-500 transition group">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition">
+                    <Camera className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">Quick Scan</p>
-                    <p className="text-xs text-muted-foreground">Instant analysis</p>
+                    <p className="font-medium text-foreground text-xs">Quick Scan</p>
+                    <p className="hidden sm:block text-[10px] text-muted-foreground">Instant analysis</p>
                   </div>
                 </div>
               </button>
 
-              <button onClick={() => setLocation("/profile-settings")} className="card-elevated p-4 text-left hover:border-emerald-500 transition group">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition">
-                    <Settings className="w-5 h-5 text-emerald-600" />
+              <button onClick={() => setLocation("/profile-settings")} className="card-elevated p-3 text-left hover:border-emerald-500 transition group">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition">
+                    <Settings className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">Update Profile</p>
-                    <p className="text-xs text-muted-foreground">Manage crops & location</p>
+                    <p className="font-medium text-foreground text-xs">Profile</p>
+                    <p className="hidden sm:block text-[10px] text-muted-foreground">Manage crops</p>
                   </div>
                 </div>
               </button>
 
-              <button onClick={() => setLocation("/analytics")} className="card-elevated p-4 text-left hover:border-emerald-500 transition group">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition">
-                    <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <button onClick={() => setLocation("/analytics")} className="card-elevated p-3 text-left hover:border-emerald-500 transition group">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="font-medium text-foreground">Analytics</p>
-                    <p className="text-xs text-muted-foreground">Disease trends & map</p>
+                    <p className="font-medium text-foreground text-xs">Analytics</p>
+                    <p className="hidden sm:block text-[10px] text-muted-foreground">Disease trends</p>
                   </div>
                 </div>
               </button>
@@ -437,11 +491,10 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Slide‑out AI Chat Panel ──────────────────────────────────────── */}
+      {/* AI Chat Panel */}
       <AnimatePresence>
         {chatOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -450,15 +503,13 @@ export default function Dashboard() {
               onClick={() => setChatOpen(false)}
             />
 
-            {/* Panel */}
             <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 z-50 h-full w-96 bg-white shadow-2xl border-l border-slate-200"
+              className="fixed top-0 right-0 z-50 h-full w-full sm:w-96 bg-white shadow-2xl border-l border-slate-200"
             >
-              {/* Close button */}
               <button
                 onClick={() => setChatOpen(false)}
                 className="absolute top-4 left-4 z-10 p-2 bg-white rounded-full shadow-md hover:bg-slate-100 transition"
@@ -466,7 +517,6 @@ export default function Dashboard() {
                 <X className="w-5 h-5 text-slate-600" />
               </button>
 
-              {/* Chatbox */}
               <div className="h-full pt-16">
                 <AIChatBox language={user?.preferredLanguage || "en"} embedded />
               </div>
