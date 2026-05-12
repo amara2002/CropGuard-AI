@@ -1,3 +1,18 @@
+// client/src/components/AIChatBox.tsx
+// CropGuard AI - AI Chat Assistant Component
+// 
+// Purpose: Provide an interactive chat interface for farmers to ask questions
+//          about crop diseases, pest control, soil management, and farming practices.
+//          Powered by Google Gemini AI with multi-language support.
+//
+// Features:
+// - Persistent chat history (saved to database for logged-in users)
+// - Multi-language responses (English, French, Swahili, Luganda)
+// - Suggested questions for first-time users
+// - Clear history functionality
+// - Text-to-speech integration (handled by parent)
+// - Slide-out panel or embedded mode
+
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +36,8 @@ interface Message {
 }
 
 interface AIChatBoxProps {
-  language?: string;
-  embedded?: boolean;
+  language?: string;      // Language code (en, fr, sw, lg)
+  embedded?: boolean;     // If true, renders inline (not as floating button)
 }
 
 export default function AIChatBox({ language = "en", embedded = false }: AIChatBoxProps) {
@@ -36,9 +51,12 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Get API URL from environment variable
+  // Get API URL from environment (works in dev and production)
   const apiUrl = import.meta.env.VITE_API_URL || "";
 
+  // ============================================================================
+  // Scroll Management - Auto-scroll to bottom when new messages arrive
+  // ============================================================================
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -47,11 +65,21 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     scrollToBottom();
   }, [messages]);
 
+  // ============================================================================
+  // Initialization
+  // ============================================================================
   useEffect(() => {
     if (embedded) setIsOpen(true);
   }, [embedded]);
 
-  // Load chat history from database when opened
+  // ============================================================================
+  // Chat History Management
+  // ============================================================================
+  
+  /**
+   * Load chat history from database when chat panel is opened
+   * Only runs once per session (historyLoaded flag prevents repeated loads)
+   */
   useEffect(() => {
     if (isOpen && user?.id && !historyLoaded) {
       loadHistory();
@@ -76,6 +104,9 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     setHistoryLoaded(true);
   };
 
+  /**
+   * Clear all chat history from database and reset local state
+   */
   const handleClearHistory = async () => {
     if (!confirm("Delete all chat history? This cannot be undone.")) return;
     try {
@@ -86,6 +117,13 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     }
   };
 
+  // ============================================================================
+  // Message Sending
+  // ============================================================================
+  
+  /**
+   * Send user message to backend AI and add response to chat
+   */
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
@@ -101,7 +139,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
         body: JSON.stringify({
           message: userMessage,
           language,
-          userId: user?.id || null,
+          userId: user?.id || null,  // null for guest users
         }),
       });
 
@@ -123,6 +161,10 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     }
   };
 
+  // ============================================================================
+  // Event Handlers
+  // ============================================================================
+  
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -135,12 +177,17 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     setTimeout(() => handleSend(), 100);
   };
 
+  // Suggested questions for first-time users (reduces empty state friction)
   const suggestedQuestions = [
     getSuggestedQ1(language),
     getSuggestedQ2(language),
     getSuggestedQ3(language),
   ];
 
+  // ============================================================================
+  // UI Components
+  // ============================================================================
+  
   const chatContent = (
     <div
       className={
@@ -149,7 +196,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
           : "fixed bottom-6 right-6 z-50 w-96 h-[620px] bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden"
       }
     >
-      {/* Header */}
+      {/* Header - Gradient background with controls */}
       <div className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="bg-white/20 p-2 rounded-xl">
@@ -161,6 +208,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Clear history button (only for authenticated users with messages) */}
           {user?.id && messages.length > 1 && (
             <button
               onClick={handleClearHistory}
@@ -170,6 +218,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
               <Trash2 className="w-4 h-4" />
             </button>
           )}
+          {/* Close button (only in floating mode) */}
           {!embedded && (
             <button
               onClick={() => setIsOpen(false)}
@@ -181,7 +230,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages Container - Scrollable area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-slate-50 to-white">
         {messages.map((msg, idx) => (
           <motion.div
@@ -191,6 +240,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
             transition={{ duration: 0.2 }}
             className={`flex items-start gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
           >
+            {/* Avatar/Icon */}
             <div
               className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm ${
                 msg.role === "user"
@@ -204,6 +254,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
                 <Leaf className="w-4 h-4 text-emerald-600" />
               )}
             </div>
+            {/* Message Bubble */}
             <div
               className={`max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                 msg.role === "user"
@@ -216,6 +267,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
           </motion.div>
         ))}
 
+        {/* Typing Indicator (when AI is generating response) */}
         {loading && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -236,7 +288,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggested questions */}
+      {/* Suggested Questions - Only show on first message */}
       {messages.length <= 1 && !loading && (
         <div className="px-4 py-3 bg-white border-t border-slate-100 flex-shrink-0">
           <p className="text-xs text-slate-400 mb-2 font-medium">Try asking:</p>
@@ -254,7 +306,7 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
         </div>
       )}
 
-      {/* Input */}
+      {/* Input Area */}
       <div className="p-4 bg-white border-t border-slate-200 flex-shrink-0">
         <div className="flex gap-2">
           <Input
@@ -282,8 +334,13 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
     </div>
   );
 
+  // ============================================================================
+  // Render Logic
+  // ============================================================================
+  
   return (
     <>
+      {/* Floating Button (only in non-embedded mode when closed) */}
       {!embedded && !isOpen && (
         <motion.button
           initial={{ scale: 0 }}
@@ -297,8 +354,10 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
         </motion.button>
       )}
 
+      {/* Embedded mode (no floating button) */}
       {embedded && chatContent}
 
+      {/* Floating panel (non-embedded mode when open) */}
       <AnimatePresence>
         {!embedded && isOpen && (
           <motion.div
@@ -316,7 +375,9 @@ export default function AIChatBox({ language = "en", embedded = false }: AIChatB
   );
 }
 
-// ── Helper functions ─────────────────────────────────────────────────────
+// ============================================================================
+// Helper Functions - Multi-language Support
+// ============================================================================
 
 function getWelcomeMessage(lang: string): string {
   const messages: Record<string, string> = {

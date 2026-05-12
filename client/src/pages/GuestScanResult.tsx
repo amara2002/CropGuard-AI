@@ -1,9 +1,14 @@
+// GuestScanResult.tsx - Results page for anonymous (guest) quick scans
+// Purpose: Display disease detection results for users who are not logged in.
+//          Results are temporary and cannot be saved without creating an account.
+//          Includes a single, professional call-to-action to encourage signup.
+
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertCircle, CheckCircle, ArrowLeft } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle, ArrowLeft, Leaf, Lock, TrendingUp, Shield } from "lucide-react";
 
-// Multilingual translations for guest page
+// Multilingual translations for guest page - supports 4 languages
 const t = {
   analyzing: {
     en: "Analyzing your image...",
@@ -48,10 +53,10 @@ const t = {
     lg: "Embeera y'omugenyi – ebivaamu bya kaseera.",
   },
   createAccount: {
-    en: "Create an account to save your scans →",
-    fr: "Créer un compte pour sauvegarder vos analyses →",
-    sw: "Tengeneza akaunti ili kuhifadhi uchunguzi wako →",
-    lg: "Tondawo akawunti okuwanirira okukebera kwo →",
+    en: "Create a free account to save your scans",
+    fr: "Créez un compte gratuit pour sauvegarder vos analyses",
+    sw: "Tengeneza akaunti ya bure kuhifadhi uchunguzi wako",
+    lg: "Tondawo akawunti eya bwerere okuwanirira okukebera kwo",
   },
   diseaseDetected: {
     en: "Disease Detected",
@@ -78,16 +83,28 @@ const t = {
     lg: "Tekimanyiddwa",
   },
   saveScans: {
-    en: "Save your scans and get personalized treatment plans.",
-    fr: "Sauvegardez vos analyses et obtenez des plans de traitement personnalisés.",
-    sw: "Hifadhi uchunguzi wako na upate mipango ya matibabu ya kibinafsi.",
-    lg: "Wanirira okukebera kwo ofune enteekateeka z'okuvvuunuka ez'omwena.",
+    en: "Save your scan history, get personalized treatment plans, and receive AI-powered prevention recommendations.",
+    fr: "Sauvegardez votre historique d'analyses, obtenez des plans de traitement personnalisés et recevez des recommandations de prévention basées sur l'IA.",
+    sw: "Hifadhi historia yako ya uchunguzi, pata mipango ya matibabu ya kibinafsi, na upokee mapendekezo ya kuzuia yanayotokana na AI.",
+    lg: "Wanirira eby'okukebera kwo, funa enteekateeka z'okujjanjaba ez'omwena, era ofune ebiragiro by'okuziyiza ebyava mu AI.",
   },
   createFreeAccount: {
     en: "Create Free Account",
     fr: "Créer un Compte Gratuit",
     sw: "Tengeneza Akaunti ya Bure",
     lg: "Tondawo Akawunti eya Bwerere",
+  },
+  treatmentRecommendations: {
+    en: "Treatment Recommendations",
+    fr: "Recommandations de Traitement",
+    sw: "Mapendekezo ya Matibabu",
+    lg: "Ebiragiro by'Okujjanjaba",
+  },
+  preventionMeasures: {
+    en: "Prevention Measures",
+    fr: "Mesures de Prévention",
+    sw: "Hatua za Kukinga",
+    lg: "Emikutu gy'Okuziyiza",
   },
 };
 
@@ -103,7 +120,6 @@ export default function GuestScanResult() {
   const [error, setError] = useState("");
   const [language, setLanguage] = useState("en");
 
-  // Get API URL from environment
   const apiUrl = import.meta.env.VITE_API_URL || "";
 
   useEffect(() => {
@@ -119,7 +135,6 @@ export default function GuestScanResult() {
       return;
     }
 
-    // Use absolute URL with apiUrl
     fetch(`${apiUrl}/api/scan/analyze-guest`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -147,10 +162,11 @@ export default function GuestScanResult() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 animate-spin text-emerald-600 mx-auto mb-4" />
-          <p className="text-muted-foreground">{tl("analyzing", language)}</p>
+          <p className="text-slate-600">{tl("analyzing", language)}</p>
+          <p className="text-xs text-slate-400 mt-2">This may take a few moments</p>
         </div>
       </div>
     );
@@ -158,74 +174,139 @@ export default function GuestScanResult() {
 
   if (error || !result) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-md p-6">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
-          <p className="text-foreground font-semibold mb-4">{error || tl("analysisFailed", language)}</p>
-          <p className="text-muted-foreground text-sm mb-6">The AI service might be starting up. Please wait a moment and try again.</p>
-          <Button onClick={() => setLocation("/")}>{tl("goHome", language)}</Button>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30 flex items-center justify-center p-4">
+        <div className="text-center max-w-md bg-white rounded-2xl shadow-xl p-8">
+          <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-10 h-10 text-red-500" />
+          </div>
+          <p className="text-slate-800 font-semibold text-lg mb-3">{error || tl("analysisFailed", language)}</p>
+          <p className="text-slate-500 text-sm mb-6">
+            The AI service might be starting up. Please wait a moment and try again.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={() => setLocation("/")} variant="outline">
+              {tl("goHome", language)}
+            </Button>
+            <Button onClick={() => window.location.reload()} className="bg-emerald-600 hover:bg-emerald-700">
+              Try Again
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b border-border bg-card">
-        <div className="container py-8">
-          <Button variant="outline" onClick={() => setLocation("/")} className="mb-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/30">
+      {/* Header */}
+      <div className="border-b border-slate-200/80 bg-white/80 backdrop-blur-xl sticky top-0 z-40 shadow-sm">
+        <div className="container px-4 py-4 md:py-6">
+          <Button
+            variant="ghost"
+            onClick={() => setLocation("/")}
+            className="mb-3 md:mb-4 -ml-3 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" />
             {tl("backToHome", language)}
           </Button>
-          <h1 className="text-3xl font-bold text-foreground">{tl("quickScanResults", language)}</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            {tl("guestMode", language)}{" "}
-            <button onClick={() => setLocation("/signup")} className="text-emerald-600 hover:underline font-medium">
-              {tl("createAccount", language)}
-            </button>
-          </p>
+
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+              {tl("quickScanResults", language)}
+            </h1>
+            <p className="text-slate-500 mt-1 text-sm">
+              {tl("guestMode", language)}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="container py-12">
-        <div className="max-w-3xl mx-auto">
-          <div className="card-elevated p-8 border-l-4 border-accent">
-            <div className="flex items-start gap-4 mb-6">
-              <CheckCircle className="w-8 h-8 text-accent flex-shrink-0 mt-1" />
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">
-                  {result.detectedDisease?.split("_").join(" ") || tl("unknown", language)}
-                </h2>
-                <p className="text-muted-foreground mt-2">{tl("diseaseDetected", language)}</p>
+      <div className="container px-4 py-6 md:py-8">
+        <div className="max-w-3xl mx-auto space-y-6">
+          
+          {/* Disease Detection Card */}
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden">
+            <div className="p-6 md:p-8 border-l-4 border-l-emerald-500">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-6">
+                <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <CheckCircle className="w-6 h-6 text-emerald-600" />
+                </div>
+                <div>
+                  <h2 className="text-2xl md:text-3xl font-bold text-slate-800">
+                    {result.detectedDisease?.split("_").join(" ") || tl("unknown", language)}
+                  </h2>
+                  <p className="text-slate-500 mt-1">{tl("diseaseDetected", language)}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium text-foreground">{tl("detectionConfidence", language)}</p>
-                <p className="text-2xl font-bold text-accent">{result.confidenceScore}%</p>
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-slate-700">{tl("detectionConfidence", language)}</p>
+                  <p className="text-2xl font-bold text-emerald-600">{result.confidenceScore}%</p>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-teal-600 h-2 rounded-full transition-all"
+                    style={{ width: `${result.confidenceScore}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className="bg-accent h-2 rounded-full"
-                  style={{ width: `${result.confidenceScore}%` }}
-                />
-              </div>
-            </div>
 
-            {result.diseaseDescription && (
-              <div className="mt-6 p-4 bg-accent/5 rounded-lg">
-                <p className="text-sm text-muted-foreground mb-2">{tl("description", language)}</p>
-                <p className="text-foreground">{result.diseaseDescription}</p>
-              </div>
-            )}
+              {result.diseaseDescription && (
+                <div className="mt-6 p-4 bg-emerald-50/30 rounded-xl">
+                  <p className="text-sm text-slate-500 font-medium mb-2">{tl("description", language)}</p>
+                  <p className="text-slate-700">{result.diseaseDescription}</p>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="mt-8 text-center">
-            <p className="text-muted-foreground mb-4">{tl("saveScans", language)}</p>
-            <Button onClick={() => setLocation("/signup")} size="lg">
-              {tl("createFreeAccount", language)}
-            </Button>
+          {/* Locked Premium Content */}
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden relative">
+            <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex items-center justify-center">
+              <div className="text-center p-6 max-w-sm">
+                <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
+                  <Lock className="w-8 h-8 text-amber-600" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-800 mb-2">Unlock Full Report</h3>
+                <p className="text-sm text-slate-600 mb-4">
+                  {tl("saveScans", language)}
+                </p>
+                <Button
+                  onClick={() => setLocation("/signup")}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 w-full"
+                >
+                  {tl("createFreeAccount", language)}
+                </Button>
+                <p className="text-xs text-slate-500 mt-3">
+                  Already have an account?{" "}
+                  <button onClick={() => setLocation("/login")} className="text-emerald-600 hover:underline">
+                    Sign in
+                  </button>
+                </p>
+              </div>
+            </div>
+
+            {/* Blurred preview of what's locked */}
+            <div className="p-6 md:p-8 opacity-30 blur-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-xl font-bold text-slate-800">{tl("treatmentRecommendations", language)}</h3>
+              </div>
+              <div className="p-4 bg-emerald-50/20 rounded-lg border border-emerald-100 mb-6">
+                <p className="font-semibold text-slate-800">Professional treatment plan</p>
+                <p className="text-sm text-slate-600 mt-1">Step-by-step instructions for disease management</p>
+              </div>
+              
+              <div className="flex items-center gap-2 mb-4">
+                <Shield className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-xl font-bold text-slate-800">{tl("preventionMeasures", language)}</h3>
+              </div>
+              <div className="p-4 bg-blue-50/20 rounded-lg border border-blue-100">
+                <p className="font-semibold text-slate-800">Prevention strategies</p>
+                <p className="text-sm text-slate-600 mt-1">Long-term crop protection methods</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -1,3 +1,8 @@
+// Home.tsx - Landing page for CropGuard AI
+// Purpose: Marketing landing page that introduces CropGuard AI to visitors.
+//          Showcases features, success stories, and drives user acquisition.
+//          Includes statistics, testimonials, and calls-to-action for signup.
+
 import { motion, useInView } from "framer-motion";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -19,6 +24,7 @@ import { useLocation } from "wouter";
 import { getLoginUrl, getSignupUrl } from "@/const";
 import { useState, useEffect, useRef } from "react";
 
+// Animated counter for statistics - counts up when visible on screen
 const Counter = ({ end, duration = 2 }: { end: number; duration?: number }) => {
   const [count, setCount] = useState(0);
   const nodeRef = useRef(null);
@@ -44,16 +50,19 @@ const Counter = ({ end, duration = 2 }: { end: number; duration?: number }) => {
 };
 
 export default function Home() {
+  // Get authentication status and navigation
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Statistics data from backend API
   const [stats, setStats] = useState({
     farmersHelped: 0,
     scansPerformed: 0,
     diseasesDetected: 0,
   });
 
+  // Fetch live statistics from backend
   useEffect(() => {
     const apiUrl = import.meta.env.VITE_API_URL || "";
     fetch(`${apiUrl}/api/stats`)
@@ -62,6 +71,7 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
+  // Smooth scroll to anchor sections on the page
   const handleSmoothScroll = (e: React.MouseEvent<HTMLAnchorElement>, targetId: string) => {
     e.preventDefault();
     const element = document.getElementById(targetId);
@@ -72,13 +82,16 @@ export default function Home() {
     setMobileMenuOpen(false);
   };
 
+  // Handle "Get Started" based on auth status
   const handleGetStarted = () => {
     if (isAuthenticated) setLocation("/dashboard");
     else setLocation(getSignupUrl());
   };
 
+  // Direct to quick scan page
   const handleQuickScan = () => setLocation("/scanner");
 
+  // Success stories from real farmers (for marketing)
   const testimonials = [
     {
       name: "Grace Akello",
@@ -102,7 +115,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-accent/5 overflow-x-hidden">
-      {/* Floating Quick Scan Button */}
+      
+      {/* Floating Quick Scan Button - Fixed position for easy access */}
       <motion.button
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -116,9 +130,10 @@ export default function Home() {
         </span>
       </motion.button>
 
-      {/* Navigation */}
+      {/* Navigation Bar - Sticky with backdrop blur */}
       <nav className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container flex items-center justify-between h-16">
+          {/* Logo */}
           <div className="flex items-center gap-2">
             <motion.div
               initial={{ rotate: -10 }}
@@ -130,6 +145,7 @@ export default function Home() {
             <span className="text-xl font-bold text-foreground">CropGuard</span>
           </div>
 
+          {/* Desktop Navigation Links */}
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={(e) => handleSmoothScroll(e, "features")} className="text-sm text-muted-foreground hover:text-foreground transition cursor-pointer">
               Features
@@ -142,6 +158,7 @@ export default function Home() {
             </a>
           </div>
 
+          {/* Auth Buttons - Desktop & Mobile toggle */}
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <>
@@ -174,6 +191,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Mobile Menu - Collapsible navigation */}
         {mobileMenuOpen && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -198,7 +216,7 @@ export default function Home() {
         )}
       </nav>
 
-      {/* Hero Section */}
+      {/* Hero Section - Main value proposition */}
       <section className="container py-20 md:py-32">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -232,7 +250,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Stats Section */}
+      {/* Statistics Section - Social proof with animated counters */}
       <section className="container py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
           {[
@@ -262,7 +280,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Grid (unchanged) */}
+      {/* Features Grid - Key product capabilities */}
       <section id="features" className="container py-20 scroll-mt-16">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center mb-16">
           <h2 className="text-4xl font-bold text-foreground mb-4">Why Choose CropGuard?</h2>
@@ -295,7 +313,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How It Works (unchanged) */}
+      {/* How It Works - 3-step user journey */}
       <section id="how-it-works" className="container py-20 scroll-mt-16">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center mb-16">
           <h2 className="text-4xl font-bold text-foreground mb-4">How It Works</h2>
@@ -318,13 +336,14 @@ export default function Home() {
                 <h3 className="text-xl font-semibold text-foreground mb-3">{item.title}</h3>
                 <p className="text-muted-foreground">{item.description}</p>
               </div>
+              {/* Connector line between steps */}
               {idx < 2 && <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-accent/30 transform -translate-y-1/2" />}
             </motion.div>
           ))}
         </div>
       </section>
 
-      {/* Testimonials (unchanged) */}
+      {/* Testimonials - Social proof from real farmers */}
       <section id="testimonials" className="container py-20 scroll-mt-16">
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center mb-16">
           <h2 className="text-4xl font-bold text-foreground mb-4">Success Stories</h2>
@@ -335,6 +354,7 @@ export default function Home() {
         <div className="grid md:grid-cols-3 gap-8">
           {testimonials.map((t, idx) => (
             <motion.div key={idx} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true }} transition={{ delay: idx * 0.1 }} className="card-elevated p-8">
+              {/* Star Rating */}
               <div className="flex items-center gap-1 mb-4">
                 {[...Array(t.rating)].map((_, i) => (<Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />))}
               </div>
@@ -353,7 +373,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section (unchanged) */}
+      {/* Call to Action - Final conversion section */}
       <section className="container py-20">
         <motion.div initial={{ opacity: 0, y: 30 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="card-elevated bg-gradient-to-r from-emerald-600 to-teal-600 p-12 text-center rounded-2xl text-white">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Protect Your Crops?</h2>
@@ -367,7 +387,7 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* Footer (unchanged) */}
+      {/* Footer - Legal and navigation links */}
       <footer className="border-t border-border py-12 mt-20">
         <div className="container">
           <div className="grid md:grid-cols-4 gap-8 mb-8">

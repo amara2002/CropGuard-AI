@@ -1,3 +1,7 @@
+// Scanner.tsx - Quick scan page for crop disease detection
+// Purpose: Provides a streamlined interface for farmers to quickly upload 
+//          and analyze crop images without needing to go through the full dashboard flow
+
 import React, { useState, useRef, useCallback } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
@@ -17,6 +21,8 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Multilingual Translations ────────────────────────────────────────────
+// I added support for 4 languages: English, French, Swahili, and Luganda
+// This helps reach more farmers across East Africa
 const t = {
   header: {
     en: "AI Diagnostic Terminal",
@@ -128,30 +134,35 @@ const t = {
   },
 };
 
+// Helper function to get translated text based on selected language
 function tl(key: keyof typeof t, lang: string): string {
   const translations = t[key] as Record<string, string>;
   return translations[lang] || translations.en;
 }
 
 export default function Scanner() {
+  // Get authentication status to determine if user is logged in
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [cropType, setCropType] = useState("Tomato");
-  const [language, setLanguage] = useState("en");
-  const [isUploading, setIsUploading] = useState(false);
-  const [dragActive, setDragActive] = useState(false);
+  // State management for the scan process
+  const [file, setFile] = useState<File | null>(null);           // Selected image file
+  const [preview, setPreview] = useState<string | null>(null);   // Preview URL for display
+  const [cropType, setCropType] = useState("Tomato");            // Default crop selection
+  const [language, setLanguage] = useState("en");                // Default language
+  const [isUploading, setIsUploading] = useState(false);         // Loading state
+  const [dragActive, setDragActive] = useState(false);           // Drag & drop state
 
-  // Get API URL from environment variable
+  // Get API URL from environment (works locally and in production on Render)
   const apiUrl = import.meta.env.VITE_API_URL || "";
 
+  // tRPC mutation to create a new scan record in the database
   const createScan = trpc.scans.create.useMutation({
     onSuccess: (data) => {
       console.log("✅ Scan created with ID:", data.scanId);
       toast.success(tl("scanCreated", language));
+      // Navigate to the scan details page after a short delay
       setTimeout(() => setLocation(`/scan/${data.scanId}`), 300);
     },
     onError: (error) => {
@@ -161,11 +172,14 @@ export default function Scanner() {
     },
   });
 
+  // Validate and store the selected image file
   const handleFile = useCallback((selectedFile: File) => {
+    // Check file size limit (5MB max)
     if (selectedFile.size > 5 * 1024 * 1024) {
       toast.error(tl("fileTooBig", language));
       return;
     }
+    // Verify it's an image file
     if (!selectedFile.type.startsWith("image/")) {
       toast.error(tl("validImage", language));
       return;
@@ -174,6 +188,7 @@ export default function Scanner() {
     setPreview(URL.createObjectURL(selectedFile));
   }, [language]);
 
+  // Drag & drop event handlers for better UX
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
@@ -191,12 +206,15 @@ export default function Scanner() {
     setDragActive(false);
   }, []);
 
+  // Handle file selection from the file picker dialog
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) handleFile(selectedFile);
   };
 
+  // Main function to start the AI analysis process
   const handleStartAnalysis = async () => {
+    // Validate that an image is selected
     if (!file) {
       toast.error(tl("pleaseUpload", language));
       return;
@@ -204,10 +222,11 @@ export default function Scanner() {
 
     setIsUploading(true);
     try {
+      // Prepare form data for image upload
       const formData = new FormData();
       formData.append("file", file);
 
-      // Use absolute URL with apiUrl
+      // Upload image to the backend
       const res = await fetch(`${apiUrl}/api/upload`, {
         method: "POST",
         body: formData,
@@ -221,6 +240,7 @@ export default function Scanner() {
       const { imageUrl, imageKey } = await res.json();
       console.log("📁 Image uploaded:", imageKey);
 
+      // For authenticated users, save the scan to their account
       if (isAuthenticated) {
         await createScan.mutateAsync({
           imageUrl,
@@ -229,6 +249,7 @@ export default function Scanner() {
           language: language as "en" | "hi" | "es" | "sw" | "lg" | "fr",
         });
       } else {
+        // For guest users, show results immediately without saving to database
         toast.success(tl("guestComplete", language));
         setLocation(
           `/guest-result?img=${encodeURIComponent(imageUrl)}&crop=${cropType}`
@@ -241,6 +262,7 @@ export default function Scanner() {
     }
   };
 
+  // Clear the selected image and reset preview
   const clearImage = () => {
     setFile(null);
     setPreview(null);
@@ -250,7 +272,8 @@ export default function Scanner() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] p-4 md:p-6 flex flex-col items-center">
       <div className="w-full max-w-3xl space-y-8 py-8 md:py-12">
-        {/* Header */}
+        
+        {/* Header Section - Title and subtitle */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -264,7 +287,7 @@ export default function Scanner() {
           </p>
         </motion.div>
 
-        {/* Upload Area */}
+        {/* Image Upload Area - Supports click, drag & drop, and preview */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -292,6 +315,7 @@ export default function Scanner() {
           >
             <AnimatePresence mode="wait">
               {preview ? (
+                // Image Preview Mode - Show uploaded image with delete option
                 <motion.div
                   key="preview"
                   initial={{ opacity: 0 }}
@@ -321,6 +345,7 @@ export default function Scanner() {
                   </div>
                 </motion.div>
               ) : (
+                // Upload Prompt Mode - Ask user to select an image
                 <motion.div
                   key="upload-prompt"
                   initial={{ opacity: 0 }}
@@ -343,13 +368,14 @@ export default function Scanner() {
           </div>
         </motion.div>
 
-        {/* Settings Row */}
+        {/* Settings Row - Crop type and language selection */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="grid grid-cols-2 gap-4 max-w-xl mx-auto"
         >
+          {/* Crop Type Dropdown */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-400 uppercase ml-2">
               {tl("cropTarget", language)}
@@ -366,6 +392,8 @@ export default function Scanner() {
               <option>Tomato</option>
             </select>
           </div>
+          
+          {/* Language Dropdown */}
           <div className="space-y-2">
             <label className="text-[9px] font-black text-slate-400 uppercase ml-2">
               {tl("outputLang", language)}
@@ -383,7 +411,7 @@ export default function Scanner() {
           </div>
         </motion.div>
 
-        {/* Action Button */}
+        {/* Start Analysis Button - Main CTA */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -418,7 +446,7 @@ export default function Scanner() {
           </Button>
         </motion.div>
 
-        {/* Guest Notice */}
+        {/* Guest Mode Notice - Shown only for non-authenticated users */}
         <AnimatePresence>
           {!isAuthenticated && (
             <motion.div

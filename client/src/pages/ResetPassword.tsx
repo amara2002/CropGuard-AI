@@ -1,3 +1,7 @@
+// ResetPassword.tsx - Password reset page for CropGuard AI
+// Purpose: Allow users to reset their forgotten passwords using a valid reset token.
+//          Part of the account recovery and security flow.
+
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -9,12 +13,15 @@ import { toast } from "sonner";
 
 export default function ResetPassword() {
   const [, setLocation] = useLocation();
-  const [token, setToken] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  
+  // Form state management
+  const [token, setToken] = useState("");           // Reset token from email
+  const [newPassword, setNewPassword] = useState(""); // New password to set
+  const [showPassword, setShowPassword] = useState(false); // Toggle password visibility
+  const [loading, setLoading] = useState(false);     // Loading state during submission
+  const [success, setSuccess] = useState(false);     // Success state after reset
 
+  // tRPC mutation to reset password using the provided token
   const resetMutation = trpc.auth.resetPassword.useMutation({
     onSuccess: () => {
       setSuccess(true);
@@ -26,10 +33,18 @@ export default function ResetPassword() {
     },
   });
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token.trim()) return toast.error("Please enter the reset token");
-    if (newPassword.length < 6) return toast.error("Password must be at least 6 characters");
+    
+    // Validation checks
+    if (!token.trim()) {
+      return toast.error("Please enter the reset token");
+    }
+    if (newPassword.length < 6) {
+      return toast.error("Password must be at least 6 characters");
+    }
+    
     setLoading(true);
     await resetMutation.mutateAsync({ token, newPassword });
     setLoading(false);
@@ -37,6 +52,8 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 antialiased">
+      
+      {/* Back button to login page */}
       <button
         onClick={() => setLocation("/login")}
         className="absolute top-4 left-4 text-xs font-bold text-slate-400 hover:text-emerald-600 uppercase tracking-widest flex items-center gap-1 transition-colors"
@@ -44,43 +61,88 @@ export default function ResetPassword() {
         <ArrowLeft className="w-3 h-3" /> Back to Login
       </button>
 
+      {/* Brand logo */}
       <div className="mb-6 flex items-center gap-2.5">
-        <div className="bg-emerald-600 p-1.5 rounded-lg"><Leaf className="w-4 h-4 text-white" /></div>
-        <span className="text-xs font-black text-slate-900 uppercase tracking-widest">CropGuard <span className="text-emerald-600">v2.1</span></span>
+        <div className="bg-emerald-600 p-1.5 rounded-lg">
+          <Leaf className="w-4 h-4 text-white" />
+        </div>
+        <span className="text-xs font-black text-slate-900 uppercase tracking-widest">
+          CropGuard <span className="text-emerald-600">v2.1</span>
+        </span>
       </div>
 
+      {/* Main Reset Password Card */}
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-8">
+        
+        {/* Success State - Show confirmation after successful reset */}
         {success ? (
           <div className="text-center py-6">
             <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-emerald-600" />
             </div>
             <h2 className="text-xl font-bold text-slate-900 mb-2">Password Reset!</h2>
-            <p className="text-sm text-muted-foreground mb-6">Your password has been successfully reset.</p>
-            <Button onClick={() => setLocation("/login")} variant="outline" className="w-full">Go to Login</Button>
+            <p className="text-sm text-muted-foreground mb-6">
+              Your password has been successfully reset.
+            </p>
+            <Button onClick={() => setLocation("/login")} variant="outline" className="w-full">
+              Go to Login
+            </Button>
           </div>
         ) : (
+          // Form State - Collect token and new password
           <>
             <div className="mb-6">
               <h2 className="text-2xl font-bold text-slate-900">Reset Password</h2>
-              <p className="text-sm text-muted-foreground mt-1">Enter the reset token and your new password.</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter the reset token and your new password.
+              </p>
             </div>
+            
             <form onSubmit={handleSubmit} className="space-y-5">
+              
+              {/* Reset Token Input Field */}
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Reset Token</Label>
-                <Input value={token} onChange={(e) => setToken(e.target.value)} placeholder="Paste reset token here" className="text-sm" />
+                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  Reset Token
+                </Label>
+                <Input 
+                  value={token} 
+                  onChange={(e) => setToken(e.target.value)} 
+                  placeholder="Paste reset token here" 
+                  className="text-sm" 
+                />
               </div>
+              
+              {/* New Password Field with visibility toggle */}
               <div className="space-y-1">
-                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">New Password</Label>
+                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                  New Password
+                </Label>
                 <div className="relative">
                   <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-                  <Input type={showPassword ? "text" : "password"} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="At least 6 characters" className="pl-11 pr-12 text-sm" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Input 
+                    type={showPassword ? "text" : "password"} 
+                    value={newPassword} 
+                    onChange={(e) => setNewPassword(e.target.value)} 
+                    placeholder="At least 6 characters" 
+                    className="pl-11 pr-12 text-sm" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)} 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
-              <Button type="submit" className="w-full bg-slate-900 hover:bg-black py-6 rounded-xl text-[10px] font-bold uppercase tracking-widest" disabled={loading}>
+              
+              {/* Submit Button */}
+              <Button 
+                type="submit" 
+                className="w-full bg-slate-900 hover:bg-black py-6 rounded-xl text-[10px] font-bold uppercase tracking-widest" 
+                disabled={loading}
+              >
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Reset Password"}
               </Button>
             </form>

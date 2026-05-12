@@ -1,3 +1,7 @@
+// Login.tsx - Authentication page for CropGuard AI
+// Purpose: Provide secure login functionality with email/password and Google OAuth.
+//          Handles credential validation, error messages, and redirects to dashboard.
+
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc, setToken } from "@/lib/trpc";
@@ -19,22 +23,26 @@ import { getSignupUrl } from "@/const";
 
 export default function Login() {
   const [, setLocation] = useLocation();
+  
+  // Form state management
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isOAuthAccount, setIsOAuthAccount] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);    // Toggle password visibility
+  const [loading, setLoading] = useState(false);               // Loading state for form submission
+  const [errors, setErrors] = useState<Record<string, string>>({}); // Validation errors
+  const [isOAuthAccount, setIsOAuthAccount] = useState(false); // Flag for Google OAuth accounts
 
+  // tRPC mutation for email/password login
   const loginMutation = trpc.auth.login.useMutation({
     onSuccess: (data) => {
-      // Store the token
+      // Store the JWT token for authenticated requests
       setToken(data.token);
       toast.success("Signed in successfully!");
-      // Force a full page reload to the dashboard – ensures useAuth picks up the new token
+      // Force full page reload to dashboard - ensures useAuth hook picks up the new token
       window.location.href = "/dashboard";
     },
     onError: (err) => {
+      // Special handling for Google OAuth accounts - they need to use Google button
       if (err.message.includes("Google Sign-In")) {
         setIsOAuthAccount(true);
         toast.error("This account uses Google Sign‑In. Please use the Google button below.");
@@ -45,15 +53,18 @@ export default function Login() {
     },
   });
 
+  // Validate email format and required fields
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
+    // Email validation
     if (!email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^\S+@\S+\.\S+$/.test(email)) {
       newErrors.email = "Invalid email format";
     }
 
+    // Password validation
     if (!password) {
       newErrors.password = "Password is required";
     }
@@ -62,6 +73,7 @@ export default function Login() {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Handle email/password form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
@@ -75,13 +87,15 @@ export default function Login() {
     }
   };
 
+  // Redirect to Google OAuth flow
   const handleGoogleLogin = () => {
     window.location.href = "/api/auth/google";
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 antialiased">
-      {/* Brand */}
+      
+      {/* Brand Logo Section */}
       <div className="mb-6 flex items-center gap-2.5">
         <div className="bg-emerald-600 p-1.5 rounded-lg">
           <Leaf className="w-4 h-4 text-white" />
@@ -91,8 +105,10 @@ export default function Login() {
         </span>
       </div>
 
-      {/* Main Card */}
+      {/* Main Login Card */}
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden p-8">
+        
+        {/* Header */}
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-slate-900">Welcome Back</h2>
           <p className="text-sm text-muted-foreground mt-1">
@@ -100,7 +116,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* OAuth account notice */}
+        {/* OAuth Account Notice - Shows when user tries email login with Google account */}
         {isOAuthAccount && (
           <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800 flex items-start gap-2">
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
@@ -108,8 +124,10 @@ export default function Login() {
           </div>
         )}
 
+        {/* Email/Password Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email */}
+          
+          {/* Email Field */}
           <div className="space-y-1">
             <Label htmlFor="email" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
               Email
@@ -138,7 +156,7 @@ export default function Login() {
             )}
           </div>
 
-          {/* Password */}
+          {/* Password Field with Visibility Toggle */}
           <div className="space-y-1">
             <Label htmlFor="password" className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
               Password
@@ -173,7 +191,7 @@ export default function Login() {
             )}
           </div>
 
-          {/* Forgot Password (placeholder) */}
+          {/* Forgot Password Link */}
           <div className="text-right">
             <button
               type="button"
@@ -184,6 +202,7 @@ export default function Login() {
             </button>
           </div>
 
+          {/* Submit Button */}
           <Button
             type="submit"
             className="w-full bg-slate-900 hover:bg-black py-6 rounded-xl text-[10px] font-bold uppercase tracking-widest"
@@ -215,7 +234,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Google OAuth */}
+        {/* Google OAuth Button */}
         <Button
           variant="outline"
           className="w-full border-slate-200 text-slate-700 py-6 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-50"
@@ -230,7 +249,7 @@ export default function Login() {
           Google
         </Button>
 
-        {/* Signup Link */}
+        {/* Sign Up Link */}
         <p className="mt-6 text-center text-sm">
           Don't have an account?{" "}
           <button
@@ -242,6 +261,7 @@ export default function Login() {
         </p>
       </div>
 
+      {/* Security Footer */}
       <p className="mt-8 text-[9px] text-slate-400 font-bold uppercase tracking-[0.4em]">
         Secured by CropGuard Identity Layer
       </p>

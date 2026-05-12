@@ -1,3 +1,16 @@
+// server/routes/chat.ts
+// CropGuard AI - AI Chat Assistant Routes
+// 
+// Purpose: Provide conversational AI assistance for farmers using Google Gemini.
+//          Handles chat message storage, retrieval, and deletion.
+//          Supports 4 languages: English, French, Swahili, Luganda.
+//
+// Features:
+// - Persistent chat history (stored in PostgreSQL)
+// - Multilingual responses
+// - Conversation memory per user
+// - Fallback responses when AI unavailable
+
 import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { ENV } from "../_core/env.js";
@@ -7,15 +20,39 @@ import { eq } from "drizzle-orm";
 
 const router = express.Router();
 
-// Test endpoint
+// ============================================================================
+// Health/Test Endpoint
+// ============================================================================
+
+/**
+ * Simple ping endpoint to verify chat routes are working
+ * Used by frontend to test API connectivity
+ */
 router.get("/ping", (req, res) => {
-  res.json({ message: "Chat route is working!", timestamp: new Date().toISOString() });
+  res.json({ 
+    message: "Chat route is working!", 
+    timestamp: new Date().toISOString() 
+  });
 });
 
-// Initialize Gemini
+// ============================================================================
+// Gemini AI Initialization
+// ============================================================================
+
 const genAI = new GoogleGenerativeAI(ENV.geminiApiKey);
 
-// GET chat history
+// ============================================================================
+// Chat History Routes
+// ============================================================================
+
+/**
+ * GET /api/chat/history - Retrieve user's chat history
+ * 
+ * Returns last 100 messages (most recent first)
+ * 
+ * @query userId - ID of the authenticated user
+ * @returns Array of chat messages with role (user/assistant) and content
+ */
 router.get("/chat/history", async (req, res) => {
   const userId = req.query.userId as string;
   if (!userId) return res.status(400).json({ error: "userId required" });
@@ -25,8 +62,9 @@ router.get("/chat/history", async (req, res) => {
       .select()
       .from(chatMessages)
       .where(eq(chatMessages.userId, parseInt(userId)))
-      .orderBy(chatMessages.createdAt)
-      .limit(100);
+      .orderBy(chatMessages.createdAt)  // Chronological order
+      .limit(100);                       // Limit to prevent performance issues
+    
     res.json(messages);
   } catch (err) {
     console.error("History error:", err);
@@ -34,27 +72,73 @@ router.get("/chat/history", async (req, res) => {
   }
 });
 
-// POST new message
+/**
+ * DELETE /api/chat/history - Clear user's chat history
+ * 
+ * Permanently deletes all chat messages for the user
+ * 
+ * @query userId - ID of the authenticated user
+ */
+router.delete("/chat/history", async (req, res) => {
+  const userId = req.query.userId as string;
+  if (!userId) return res.status(400).json({ error: "userId required" });
+
+  try {
+    await db.delete(chatMessages).where(eq(chatMessages.userId, parseInt(userId)));
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Delete error:", err);
+    res.status(500).json({ error: "Failed to delete history" });
+  }
+});
+
+// ============================================================================
+// Chat Message Endpoint
+// ============================================================================
+
+/**
+ * POST /api/chat - Send a message to the AI assistant
+ * 
+ * Workflow:
+ * 1. Validate message
+ * 2. Save user message to database (if logged in)
+ * 3. Call Gemini AI for response
+ * 4. Save AI response to database (if logged in)
+ * 5. Return response to frontend
+ * 
+ * @body message - Farmer's question
+ * @body language - Language code (en, fr, sw, lg)
+ * @body userId - User ID (optional, null for guests)
+ * 
+ * @returns { response: string } AI-generated answer
+ */
 router.post("/chat", async (req, res) => {
   const { message, language = "en", userId } = req.body;
 
+  // Validate input
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
 
   console.log("📨 Chat request received:", { 
-    message: message.substring(0, 50), 
+    message: message.substring(0, 50),  // Log first 50 chars only
     language, 
     userId 
   });
 
+  // Map language codes to full names for AI prompt
   const languageMap: Record<string, string> = {
-    en: "English", fr: "French", sw: "Swahili", lg: "Luganda",
+    en: "English", 
+    fr: "French", 
+    sw: "Swahili", 
+    lg: "Luganda",
   };
   const langName = languageMap[language] || "English";
 
   try {
-    // Save user message if logged in
+    // ------------------------------------------------------------------------
+    // Step 1: Save user message (if authenticated)
+    // ------------------------------------------------------------------------
     if (userId) {
       await db.insert(chatMessages).values({
         userId,
@@ -64,12 +148,15 @@ router.post("/chat", async (req, res) => {
       });
     }
 
-    // Use gemini-1.5-flash with proper configuration
+    // ------------------------------------------------------------------------
+    // Step 2: Generate AI response using Gemini
+    // ------------------------------------------------------------------------
+    // Using gemini-3-flash-preview for fast, high-quality responses
     const model = genAI.getGenerativeModel({ 
       model: "gemini-3-flash-preview",
       generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 800,
+        temperature: 0.7,        // Balanced creativity
+        maxOutputTokens: 800,    // Sufficient for detailed answers
       }
     });
     
@@ -85,7 +172,9 @@ Provide a helpful, practical response focusing on actionable advice.`;
     const response = result.response.text();
     console.log("✅ Chat response received, length:", response.length);
 
-    // Save assistant response if logged in
+    // ------------------------------------------------------------------------
+    // Step 3: Save AI response (if authenticated)
+    // ------------------------------------------------------------------------
     if (userId) {
       await db.insert(chatMessages).values({
         userId,
@@ -95,28 +184,17 @@ Provide a helpful, practical response focusing on actionable advice.`;
       });
     }
 
+    // ------------------------------------------------------------------------
+    // Step 4: Return response to frontend
+    // ------------------------------------------------------------------------
     return res.status(200).json({ response });
     
   } catch (err: any) {
     console.error("❌ Chat error:", err.message);
     
-    // Simple fallback
+    // Fallback response if Gemini fails
     const fallback = "I'm having trouble connecting. Please try again in a moment.";
     return res.status(200).json({ response: fallback });
-  }
-});
-
-// DELETE chat history
-router.delete("/chat/history", async (req, res) => {
-  const userId = req.query.userId as string;
-  if (!userId) return res.status(400).json({ error: "userId required" });
-
-  try {
-    await db.delete(chatMessages).where(eq(chatMessages.userId, parseInt(userId)));
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Delete error:", err);
-    res.status(500).json({ error: "Failed to delete history" });
   }
 });
 

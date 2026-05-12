@@ -1,3 +1,7 @@
+// Signup.tsx - Multi-step user registration and onboarding
+// Purpose: Handle new user registration with email/password or Google OAuth,
+//          collect farm details, and set up user preferences for the platform
+
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -30,26 +34,26 @@ export default function Signup() {
   const { user, isAuthenticated } = useAuth();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Redirect if already authenticated and onboarded
+  // Redirect to dashboard if user is already logged in and has completed onboarding
   useEffect(() => {
-  if (isAuthenticated && (user as any)?.onboarded) {
-    setLocation("/dashboard", { replace: true });
-  }
-}, [isAuthenticated, user, setLocation]);
+    if (isAuthenticated && (user as any)?.onboarded) {
+      setLocation("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, user, setLocation]);
 
-// If user is authenticated via OAuth (no password) and hasn't onboarded, skip to Step 2
-    useEffect(() => {
-  if (isAuthenticated && user && !(user as any)?.onboarded && !(user as any)?.passwordHash) {
-    setCurrentStep(2);
-    setForm(prev => ({
-      ...prev,
-      fullName: user.name || "",
-      email: user.email || "",
-    }));
-  }
-}, [isAuthenticated, user]);
+  // Handle Google OAuth users - they skip step 1 (already have account)
+  useEffect(() => {
+    if (isAuthenticated && user && !(user as any)?.onboarded && !(user as any)?.passwordHash) {
+      setCurrentStep(2);
+      setForm(prev => ({
+        ...prev,
+        fullName: user.name || "",
+        email: user.email || "",
+      }));
+    }
+  }, [isAuthenticated, user]);
 
-  // Form state
+  // Form state management for all three onboarding steps
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
@@ -62,20 +66,20 @@ export default function Signup() {
     interfaceLanguage: "en" as "en" | "fr" | "sw" | "lg",
   });
 
-  // Password visibility
+  // Password visibility toggles for better UX
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Validation errors
+  // Form validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Search state
+  // Location search state using OpenStreetMap Nominatim API
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<{ display_name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  // tRPC mutations
+  // tRPC mutations for registration and profile updates
   const registerMutation = trpc.auth.register.useMutation();
   const updateProfile = trpc.user.updateProfile.useMutation({
     onSuccess: () => {
@@ -88,7 +92,7 @@ export default function Signup() {
     },
   });
 
-  // Click-outside dismissal
+  // Close location dropdown when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -99,7 +103,7 @@ export default function Signup() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Debounced geo‑search
+  // Debounced location search using OpenStreetMap API
   useEffect(() => {
     if (searchQuery.length < 3 || searchQuery === form.farmLocation) {
       setSuggestions([]);
@@ -135,7 +139,7 @@ export default function Signup() {
     };
   }, [searchQuery, form.farmLocation]);
 
-  // Validation logic
+  // Step 1 validation - name, email, password
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
 
@@ -143,7 +147,7 @@ export default function Signup() {
       newErrors.fullName = "Full name is required";
     }
 
-    // Skip email/password validation for Google users (already authenticated)
+    // Skip email/password validation for Google OAuth users
     if (!isAuthenticated) {
       if (!form.email.trim()) {
         newErrors.email = "Email is required";
@@ -166,13 +170,14 @@ export default function Signup() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handlers
+  // Handle location selection from dropdown
   const handleSelect = (val: string) => {
     setForm((p) => ({ ...p, farmLocation: val }));
     setSearchQuery(val);
     setShowDropdown(false);
   };
 
+  // Toggle crop selection for farmer's crops
   const toggleCrop = (crop: string) => {
     setForm((p) => ({
       ...p,
@@ -182,6 +187,7 @@ export default function Signup() {
     }));
   };
 
+  // Move to next onboarding step with validation
   const handleNext = () => {
     if (currentStep === 1) {
       if (!validateStep1()) return;
@@ -192,14 +198,14 @@ export default function Signup() {
     setCurrentStep((s) => s + 1);
   };
 
+  // Final submission - register user and save profile
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      // If user is already authenticated (from Google OAuth), skip registration
+      // Case 1: User authenticated via Google OAuth - skip registration
       if (isAuthenticated && user) {
-        // Directly update profile
         await updateProfile.mutateAsync({
           name: form.fullName,
           farmLocation: form.farmLocation,
@@ -207,17 +213,18 @@ export default function Signup() {
           preferredLanguage: form.interfaceLanguage,
         });
       } else {
-        // Step 1: Register user with email/password
+        // Case 2: New user with email/password - full registration flow
+        // Step 1: Create user account
         const authData = await registerMutation.mutateAsync({
           email: form.email,
           password: form.password,
           name: form.fullName,
         });
 
-        // Step 2: Save token
+        // Step 2: Save JWT token for authentication
         setToken(authData.token);
 
-        // Step 3: Update profile details
+        // Step 3: Update profile with farm details
         await updateProfile.mutateAsync({
           name: form.fullName,
           farmLocation: form.farmLocation,
@@ -234,7 +241,7 @@ export default function Signup() {
     }
   };
 
-  // Password strength (simple)
+  // Calculate password strength for visual feedback
   const getPasswordStrength = (pwd: string) => {
     if (pwd.length === 0) return { label: "", color: "" };
     if (pwd.length < 6) return { label: "Weak", color: "bg-red-500" };
@@ -245,7 +252,7 @@ export default function Signup() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-center p-4 antialiased selection:bg-emerald-100">
-      {/* Brand */}
+      {/* Brand Logo Section */}
       <div className="mb-6 flex items-center gap-2.5">
         <div className="bg-emerald-600 p-1.5 rounded-lg">
           <Leaf className="w-4 h-4 text-white" />
@@ -255,9 +262,9 @@ export default function Signup() {
         </span>
       </div>
 
-      {/* Main Card */}
+      {/* Main Onboarding Card - Three step process */}
       <div className="w-full max-w-[440px] bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        {/* Header */}
+        {/* Card Header with step indicator */}
         <div className="px-8 pt-8 pb-4 flex justify-between items-end border-b border-slate-50">
           <div className="space-y-1">
             <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">
@@ -275,10 +282,12 @@ export default function Signup() {
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 pt-6">
-          {/* STEP 1: Identity + Email + Password */}
+          
+          {/* STEP 1: Account Information - Name, Email, Password */}
           {currentStep === 1 && (
             <div className="space-y-5 animate-in fade-in slide-in-from-right-3 duration-300">
-              {/* Full Name */}
+              
+              {/* Full Name Field */}
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                   Full Name
@@ -306,7 +315,7 @@ export default function Signup() {
                 )}
               </div>
 
-              {/* Email */}
+              {/* Email Field */}
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                   Email
@@ -333,9 +342,10 @@ export default function Signup() {
                 )}
               </div>
 
+              {/* Password Fields - Only show for email/password signup (not Google OAuth) */}
               {!isAuthenticated && (
                 <>
-                  {/* Password field */}
+                  {/* Password Field with strength meter */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                       Password
@@ -369,6 +379,8 @@ export default function Signup() {
                         )}
                       </button>
                     </div>
+                    
+                    {/* Password strength indicator */}
                     {form.password && (
                       <div className="mt-1">
                         <div className="flex items-center gap-2">
@@ -395,7 +407,7 @@ export default function Signup() {
                     )}
                   </div>
 
-                  {/* Confirm Password field */}
+                  {/* Confirm Password Field */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                       Confirm Password
@@ -441,6 +453,7 @@ export default function Signup() {
                 </>
               )}
 
+              {/* Next Step Button */}
               <Button
                 type="button"
                 onClick={handleNext}
@@ -449,6 +462,7 @@ export default function Signup() {
                 Proceed to Mapping <ChevronRight className="ml-2 w-3.5 h-3.5" />
               </Button>
 
+              {/* Sign In Link for existing users */}
               <div className="pt-4 border-t border-slate-50 text-center">
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tight mb-3">
                   Already part of the network?
@@ -466,10 +480,11 @@ export default function Signup() {
             </div>
           )}
 
-          {/* STEP 2: Location + Crops */}
+          {/* STEP 2: Farm Parameters - Location and Crop Selection */}
           {currentStep === 2 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-300">
-              {/* Location Search */}
+              
+              {/* Location Search with OpenStreetMap integration */}
               <div className="space-y-2 relative" ref={dropdownRef}>
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                   Geospatial Region
@@ -506,6 +521,7 @@ export default function Signup() {
                   )}
                 </div>
 
+                {/* Location suggestions dropdown */}
                 {showDropdown && suggestions.length > 0 && (
                   <div className="absolute top-[105%] left-0 w-full bg-white border border-slate-200 rounded-xl shadow-xl z-[9999] overflow-hidden py-1">
                     {suggestions.map((s, i) => (
@@ -522,7 +538,7 @@ export default function Signup() {
                   </div>
                 )}
 
-                {/* Manual fallback when offline or no results */}
+                {/* Manual entry fallback when no search results */}
                 {!showDropdown &&
                   !isLoading &&
                   searchQuery.length >= 3 &&
@@ -550,7 +566,7 @@ export default function Signup() {
                   )}
               </div>
 
-              {/* Crop Selection */}
+              {/* Crop Selection Grid - Multi-select */}
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                   Crop Inventory
@@ -580,6 +596,7 @@ export default function Signup() {
                 </div>
               </div>
 
+              {/* Navigation buttons - Back and Next */}
               <div className="flex gap-2 pt-4">
                 <Button
                   type="button"
@@ -600,9 +617,11 @@ export default function Signup() {
             </div>
           )}
 
-          {/* STEP 3: Preferences & Submit */}
+          {/* STEP 3: Environment Setup - Review and Language Selection */}
           {currentStep === 3 && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-3 duration-300">
+              
+              {/* Summary Card - Review farm details */}
               <div className="bg-slate-900 rounded-2xl p-5 text-white space-y-4">
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-800">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -628,6 +647,7 @@ export default function Signup() {
                 </div>
               </div>
 
+              {/* Language Selection for Interface and AI Reports */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                   System Language
@@ -659,6 +679,7 @@ export default function Signup() {
                 </div>
               </div>
 
+              {/* Final Action Buttons */}
               <div className="flex gap-2 pt-4">
                 <Button
                   type="button"
@@ -684,6 +705,7 @@ export default function Signup() {
           )}
         </form>
 
+        {/* Footer - Sync Status Indicators */}
         <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between opacity-40 grayscale">
           <div className="flex items-center gap-1.5">
             <Database className="w-3 h-3" />
@@ -700,6 +722,7 @@ export default function Signup() {
         </div>
       </div>
 
+      {/* Terms and Security Footer */}
       <p className="mt-8 text-[9px] text-slate-400 font-bold uppercase tracking-[0.4em]">
         Secured by CropGuard Identity Layer
       </p>

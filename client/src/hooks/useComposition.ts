@@ -1,5 +1,19 @@
+// useComposition.ts - Handle IME composition events for input fields
+// 
+// Purpose: Handle Input Method Editor (IME) composition events like Chinese, Japanese,
+//          and Korean text input. Prevents Enter key from submitting forms while
+//          the user is still composing text.
+//
+// Why needed: In languages like Chinese, users type multiple characters that are
+//             "composed" before final selection. Without this hook, pressing Enter
+//             would submit the form prematurely.
+
 import { useRef } from "react";
 import { usePersistFn } from "./usePersistFn";
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
 
 export interface UseCompositionReturn<
   T extends HTMLInputElement | HTMLTextAreaElement,
@@ -20,6 +34,34 @@ export interface UseCompositionOptions<
 
 type TimerResponse = ReturnType<typeof setTimeout>;
 
+// ============================================================================
+// Main Hook
+// ============================================================================
+
+/**
+ * Hook for handling IME composition events (Chinese, Japanese, Korean text input)
+ * 
+ * @param options - Optional event handlers
+ * @returns Event handlers and composition state checker
+ * 
+ * @example
+ * // In a chat input component:
+ * const { onCompositionStart, onCompositionEnd, onKeyDown } = useComposition({
+ *   onKeyDown: (e) => {
+ *     if (e.key === "Enter" && !e.shiftKey) {
+ *       sendMessage();
+ *     }
+ *   }
+ * });
+ * 
+ * return (
+ *   <input
+ *     onCompositionStart={onCompositionStart}
+ *     onCompositionEnd={onCompositionEnd}
+ *     onKeyDown={onKeyDown}
+ *   />
+ * );
+ */
 export function useComposition<
   T extends HTMLInputElement | HTMLTextAreaElement = HTMLInputElement,
 >(options: UseCompositionOptions<T> = {}): UseCompositionReturn<T> {
@@ -29,11 +71,16 @@ export function useComposition<
     onCompositionEnd: originalOnCompositionEnd,
   } = options;
 
-  const c = useRef(false);
+  // Track if composition is currently active
+  const isComposingRef = useRef(false);
   const timer = useRef<TimerResponse | null>(null);
   const timer2 = useRef<TimerResponse | null>(null);
 
+  /**
+   * Called when composition starts (user begins typing IME text)
+   */
   const onCompositionStart = usePersistFn((e: React.CompositionEvent<T>) => {
+    // Clear any pending timers
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
@@ -42,24 +89,34 @@ export function useComposition<
       clearTimeout(timer2.current);
       timer2.current = null;
     }
-    c.current = true;
+    isComposingRef.current = true;
     originalOnCompositionStart?.(e);
   });
 
+  /**
+   * Called when composition ends (user selects final text)
+   * Uses double setTimeout to handle Safari browser quirk where compositionEnd
+   * fires before onKeyDown
+   */
   const onCompositionEnd = usePersistFn((e: React.CompositionEvent<T>) => {
-    // 使用两层 setTimeout 来处理 Safari 浏览器中 compositionEnd 先于 onKeyDown 触发的问题
+    // Safari workaround: double timeout ensures composition state is cleared
+    // after all related events have fired
     timer.current = setTimeout(() => {
       timer2.current = setTimeout(() => {
-        c.current = false;
+        isComposingRef.current = false;
       });
     });
     originalOnCompositionEnd?.(e);
   });
 
+  /**
+   * Modified onKeyDown handler that prevents Enter/Esc during composition
+   */
   const onKeyDown = usePersistFn((e: React.KeyboardEvent<T>) => {
-    // 在 composition 状态下，阻止 ESC 和 Enter（非 shift+Enter）事件的冒泡
+    // Block Enter (without Shift) and Escape keys while composing text
+    // This prevents form submission or modal closure during IME input
     if (
-      c.current &&
+      isComposingRef.current &&
       (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey))
     ) {
       e.stopPropagation();
@@ -68,8 +125,12 @@ export function useComposition<
     originalOnKeyDown?.(e);
   });
 
+  /**
+   * Check if composition is currently active
+   * Useful for conditional UI behavior
+   */
   const isComposing = usePersistFn(() => {
-    return c.current;
+    return isComposingRef.current;
   });
 
   return {

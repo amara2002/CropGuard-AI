@@ -1,3 +1,13 @@
+// client/src/components/DashboardLayout.tsx
+// CropGuard AI - Dashboard Layout Component
+// 
+// Purpose: Provide the main application layout wrapper with:
+// - Resizable sidebar navigation
+// - Authentication check (redirects to login if not authenticated)
+// - User profile menu
+// - Mobile responsive design with collapsible sidebar
+// - Resize handle for custom sidebar width
+
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -28,36 +38,64 @@ import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 
+// ============================================================================
+// Navigation Configuration
+// ============================================================================
+
+/**
+ * Sidebar menu items - Each item appears as a navigation link
+ * TODO: Update these paths to match your actual routes
+ */
 const menuItems = [
   { icon: LayoutDashboard, label: "Page 1", path: "/" },
   { icon: Users, label: "Page 2", path: "/some-path" },
 ];
 
-const SIDEBAR_WIDTH_KEY = "sidebar-width";
-const DEFAULT_WIDTH = 280;
-const MIN_WIDTH = 200;
-const MAX_WIDTH = 480;
+// ============================================================================
+// Sidebar Resize Configuration
+// ============================================================================
 
+const SIDEBAR_WIDTH_KEY = "sidebar-width";   // localStorage key
+const DEFAULT_WIDTH = 280;                    // Default width in pixels
+const MIN_WIDTH = 200;                        // Minimum allowed width
+const MAX_WIDTH = 480;                        // Maximum allowed width
 
+// ============================================================================
+// Main Dashboard Layout Component
+// ============================================================================
+
+/**
+ * DashboardLayout - Wraps all protected dashboard pages
+ * 
+ * Features:
+ * - Checks authentication status
+ * - Shows loading skeleton while checking auth
+ * - Redirects unauthenticated users to login
+ * - Provides sidebar context with resizable width
+ */
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Load saved sidebar width from localStorage (persistent across sessions)
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
 
+  // Save sidebar width to localStorage when user changes it
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
 
+  // Show skeleton while checking authentication
   if (loading) {
     return <DashboardLayoutSkeleton />
   }
 
+  // Redirect unauthenticated users to login page
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -84,6 +122,7 @@ export default function DashboardLayout({
     );
   }
 
+  // Authenticated user - render layout with resizable sidebar
   return (
     <SidebarProvider
       style={
@@ -99,11 +138,24 @@ export default function DashboardLayout({
   );
 }
 
+// ============================================================================
+// Dashboard Layout Content (Inner Component)
+// ============================================================================
+
 type DashboardLayoutContentProps = {
   children: React.ReactNode;
   setSidebarWidth: (width: number) => void;
 };
 
+/**
+ * DashboardLayoutContent - Main content area with sidebar
+ * 
+ * Features:
+ * - Resizable sidebar (drag handle on right edge)
+ * - Collapsible sidebar (icon mode)
+ * - User profile dropdown in footer
+ * - Mobile responsive with SidebarTrigger button
+ */
 function DashboardLayoutContent({
   children,
   setSidebarWidth,
@@ -117,17 +169,26 @@ function DashboardLayoutContent({
   const activeMenuItem = menuItems.find(item => item.path === location);
   const isMobile = useIsMobile();
 
+  // ==========================================================================
+  // Logout Handler
+  // ==========================================================================
   const handleLogout = async () => {
     toast.success("Logged out successfully!");
     await logout();
   };
 
+  // ==========================================================================
+  // Sidebar Resize Logic
+  // ==========================================================================
+  
+  // Reset resize state when sidebar is collapsed
   useEffect(() => {
     if (isCollapsed) {
       setIsResizing(false);
     }
   }, [isCollapsed]);
 
+  // Handle mouse movement for sidebar resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
@@ -158,14 +219,20 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
+  // ==========================================================================
+  // Render
+  // ==========================================================================
+  
   return (
     <>
+      {/* Sidebar Container with Resize Handle */}
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
           className="border-r-0"
-          disableTransition={isResizing}
+          disableTransition={isResizing}  // Disable animation while resizing
         >
+          {/* Sidebar Header - Toggle Button */}
           <SidebarHeader className="h-16 justify-center">
             <div className="flex items-center gap-3 px-2 transition-all w-full">
               <button
@@ -185,6 +252,7 @@ function DashboardLayoutContent({
             </div>
           </SidebarHeader>
 
+          {/* Sidebar Content - Navigation Menu Items */}
           <SidebarContent className="gap-0">
             <SidebarMenu className="px-2 py-1">
               {menuItems.map(item => {
@@ -208,6 +276,7 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
+          {/* Sidebar Footer - User Profile Dropdown */}
           <SidebarFooter className="p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -239,6 +308,8 @@ function DashboardLayoutContent({
             </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
+        
+        {/* Resize Handle - Drag to resize sidebar */}
         <div
           className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
           onMouseDown={() => {
@@ -249,7 +320,9 @@ function DashboardLayoutContent({
         />
       </div>
 
+      {/* Main Content Area */}
       <SidebarInset>
+        {/* Mobile Header - Only visible on small screens */}
         {isMobile && (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
@@ -264,6 +337,7 @@ function DashboardLayoutContent({
             </div>
           </div>
         )}
+        {/* Page Content */}
         <main className="flex-1 p-4">{children}</main>
       </SidebarInset>
     </>

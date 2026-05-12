@@ -1,3 +1,12 @@
+// server/routers/user.ts
+// CropGuard AI - User Profile Management Router (tRPC)
+// 
+// Purpose: Handle user profile operations including:
+// - Updating profile settings (name, location, crops, language)
+// - Retrieving user profile
+//
+// Used by Signup, ProfileSettings, and AccountSettings pages
+
 import { z } from "zod/v4";
 import { eq } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
@@ -6,24 +15,43 @@ import { users } from "../db/schema.js";
 
 export const userRouter = router({
   /**
-   * updateProfile  — called from Signup, ProfileSettings, AccountSettings.
+   * updateProfile – Update user profile information
+   * 
+   * All fields are optional to support partial updates
+   * Only provided fields are updated (keeps other fields unchanged)
+   * 
+   * Fields:
+   * - name: Full name of the farmer
+   * - farmLocation: City/district/region of the farm
+   * - cropTypes: JSON string array of crops grown (e.g., '["Tomato","Maize"]')
+   * - preferredLanguage: Interface and AI response language
+   * 
+   * Used by:
+   * - Signup (step 2 & 3)
+   * - ProfileSettings page
+   * - AccountSettings page (language only)
+   * 
+   * @throws NOT_FOUND if user doesn't exist
+   * @returns { success: true }
    */
   updateProfile: protectedProcedure
     .input(z.object({
       name:              z.string().min(1).optional(),
       farmLocation:      z.string().optional(),
-      cropTypes:         z.string().optional(), // JSON-stringified: '["Tomato","Maize"]'
+      cropTypes:         z.string().optional(), // JSON-stringified array
       preferredLanguage: z.enum(["en", "hi", "es", "sw", "lg", "fr"]).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
+      // Build update object dynamically (only include provided fields)
+      const updateData: any = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.farmLocation !== undefined) updateData.farmLocation = input.farmLocation;
+      if (input.cropTypes !== undefined) updateData.cropTypes = input.cropTypes;
+      if (input.preferredLanguage !== undefined) updateData.preferredLanguage = input.preferredLanguage;
+
       const [updated] = await ctx.db
         .update(users)
-        .set({
-          ...(input.name              !== undefined && { name: input.name }),
-          ...(input.farmLocation      !== undefined && { farmLocation: input.farmLocation }),
-          ...(input.cropTypes         !== undefined && { cropTypes: input.cropTypes }),
-          ...(input.preferredLanguage !== undefined && { preferredLanguage: input.preferredLanguage }),
-        })
+        .set(updateData)
         .where(eq(users.id, ctx.user.id))
         .returning();
 
@@ -34,6 +62,14 @@ export const userRouter = router({
       return { success: true };
     }),
 
+  /**
+   * getProfile – Get current user's profile
+   * 
+   * Returns the complete user object from database
+   * Used by components that need fresh profile data
+   * 
+   * @returns User object from database
+   */
   getProfile: protectedProcedure.query(async ({ ctx }) => {
     return ctx.user;
   }),

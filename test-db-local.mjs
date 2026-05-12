@@ -15,7 +15,7 @@ console.log('🔌 Connecting to:', connectionString.replace(/:.*@/, ':****@'));
 const sql = postgres(connectionString, {
   connect_timeout: 10,
   max: 1,
-  ssl: false,   // ← Changed from 'require' to false
+  ssl: { rejectUnauthorized: false },
 });
 
 try {

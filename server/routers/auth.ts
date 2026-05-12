@@ -1,3 +1,15 @@
+// server/routers/auth.ts
+// CropGuard AI - Authentication Router (tRPC)
+// 
+// Purpose: Handle all authentication-related operations including:
+// - User registration (email/password)
+// - User login (email/password)
+// - Password reset flow
+// - OAuth user synchronization
+// - Session management
+//
+// All procedures are type-safe and validated with Zod schemas
+
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
 import { router, publicProcedure, protectedProcedure } from "../_core/trpc.js";
@@ -16,12 +28,22 @@ import { ENV } from "../_core/env.js";
 import jwt from "jsonwebtoken";
 
 export const authRouter = router({
+  // ============================================================================
+  // User Profile Query
+  // ============================================================================
+
   /**
-   * me – returns the current user's profile or null.
+   * me – Returns the current authenticated user's profile
+   * 
+   * If no user is logged in, returns null (not an error)
+   * Parses cropTypes from JSON string to array for frontend convenience
+   * 
+   * @returns User profile object or null
    */
   me: publicProcedure.query(async ({ ctx }) => {
     if (!ctx.user) return null;
 
+    // Parse cropTypes from JSON string (stored in DB as string)
     const cropTypes = (() => {
       try {
         return ctx.user.cropTypes ? JSON.parse(ctx.user.cropTypes) : [];
@@ -40,12 +62,31 @@ export const authRouter = router({
       role: ctx.user.role,
       createdAt: ctx.user.createdAt?.toISOString(),
       lastSignedIn: ctx.user.lastSignedIn?.toISOString(),
-      onboarded: Boolean(ctx.user.farmLocation),
+      onboarded: Boolean(ctx.user.farmLocation),  // Has user completed onboarding?
     };
   }),
 
+  // ============================================================================
+  // Registration (Email/Password)
+  // ============================================================================
+
   /**
-   * register – email/password signup
+   * register – Create a new user account with email and password
+   * 
+   * Validation:
+   * - Email must be valid format
+   * - Password must be at least 6 characters
+   * - Name cannot be empty
+   * 
+   * Flow:
+   * 1. Check if email already exists
+   * 2. Hash password with bcrypt
+   * 3. Create user record
+   * 4. Generate JWT token
+   * 5. Return token to frontend
+   * 
+   * @throws CONFLICT if email already registered
+   * @returns { token, userId }
    */
   register: publicProcedure
     .input(
@@ -56,6 +97,7 @@ export const authRouter = router({
       })
     )
     .mutation(async ({ input }) => {
+      // Check for existing user
       const existing = await getUserByEmail(input.email);
       if (existing) {
         throw new TRPCError({
@@ -64,6 +106,7 @@ export const authRouter = router({
         });
       }
 
+      // Create new user
       const passwordHash = await hashPassword(input.password);
       const user = await createUser({
         email: input.email,
@@ -73,6 +116,7 @@ export const authRouter = router({
         lastSignedIn: new Date(),
       });
 
+      // Generate JWT token (7-day expiration)
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         ENV.jwtSecret,
@@ -82,8 +126,23 @@ export const authRouter = router({
       return { token, userId: user.id };
     }),
 
+  // ============================================================================
+  // Login (Email/Password)
+  // ============================================================================
+
   /**
-   * login – email/password signin
+   * login – Authenticate user with email and password
+   * 
+   * Flow:
+   * 1. Find user by email
+   * 2. Check if password hash exists (not OAuth-only account)
+   * 3. Verify password with bcrypt
+   * 4. Update lastSignedIn timestamp
+   * 5. Generate JWT token
+   * 6. Return token to frontend
+   * 
+   * @throws UNAUTHORIZED for invalid credentials or OAuth accounts
+   * @returns { token, userId }
    */
   login: publicProcedure
     .input(
@@ -101,6 +160,7 @@ export const authRouter = router({
         });
       }
 
+      // OAuth accounts don't have passwords
       if (!user.passwordHash) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
@@ -108,6 +168,7 @@ export const authRouter = router({
         });
       }
 
+      // Verify password
       const valid = await verifyPassword(input.password, user.passwordHash);
       if (!valid) {
         throw new TRPCError({
@@ -116,11 +177,13 @@ export const authRouter = router({
         });
       }
 
+      // Update last sign-in time
       await db
         .update(users)
         .set({ lastSignedIn: new Date() })
         .where(eq(users.id, user.id));
 
+      // Generate JWT token
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         ENV.jwtSecret,
@@ -130,9 +193,21 @@ export const authRouter = router({
       return { token, userId: user.id };
     }),
 
+  // ============================================================================
+  // Password Reset Flow
+  // ============================================================================
+
   /**
-   * forgotPassword – sends a password reset token
-   * (For demo: returns the reset token directly instead of emailing it)
+   * forgotPassword – Send password reset token (demo version)
+   * 
+   * For security, we don't reveal whether email exists
+   * Always returns success message even if email not found
+   * 
+   * Demo note: Token is logged to console instead of emailed
+   * In production, would send actual email
+   * 
+   * @param email - User's email address
+   * @returns Success message and demo token (for development)
    */
   forgotPassword: publicProcedure
     .input(
@@ -143,6 +218,7 @@ export const authRouter = router({
     .mutation(async ({ input }) => {
       const user = await getUserByEmail(input.email);
 
+      // Don't reveal if email exists (security best practice)
       if (!user) {
         return {
           success: true,
@@ -151,12 +227,14 @@ export const authRouter = router({
         };
       }
 
+      // Generate reset token (15-minute expiration)
       const resetToken = jwt.sign(
         { userId: user.id, email: user.email, type: "password_reset" },
         ENV.jwtSecret,
         { expiresIn: "15m" }
       );
 
+      // In development, log token to console
       console.log(`🔑 Password reset token for ${input.email}: ${resetToken}`);
 
       return {
@@ -167,7 +245,16 @@ export const authRouter = router({
     }),
 
   /**
-   * resetPassword – verifies token and updates password
+   * resetPassword – Reset password using valid token
+   * 
+   * Flow:
+   * 1. Verify JWT token signature and type
+   * 2. Check token type is "password_reset"
+   * 3. Hash new password
+   * 4. Update user record
+   * 
+   * @throws BAD_REQUEST for invalid or expired token
+   * @returns Success message
    */
   resetPassword: publicProcedure
     .input(
@@ -183,6 +270,7 @@ export const authRouter = router({
           type: string;
         };
 
+        // Ensure token is for password reset (not login or other)
         if (payload.type !== "password_reset") {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -190,6 +278,7 @@ export const authRouter = router({
           });
         }
 
+        // Hash and save new password
         const passwordHash = await hashPassword(input.newPassword);
         await db
           .update(users)
@@ -208,8 +297,20 @@ export const authRouter = router({
       }
     }),
 
+  // ============================================================================
+  // OAuth Integration
+  // ============================================================================
+
   /**
-   * oauthUpsert – called by OAuth callback handler to sync user
+   * oauthUpsert – Sync OAuth user with our database
+   * 
+   * Called by Google OAuth callback handler
+   * Creates user if doesn't exist, updates if exists
+   * 
+   * @param openId - Google's unique user ID
+   * @param name - User's full name from Google
+   * @param email - User's email from Google
+   * @returns JWT token for frontend authentication
    */
   oauthUpsert: publicProcedure
     .input(
@@ -236,8 +337,17 @@ export const authRouter = router({
       return { token, userId: user.id };
     }),
 
+  // ============================================================================
+  // Logout
+  // ============================================================================
+
   /**
-   * logout – stateless JWT: client discards token
+   * logout – JWT is stateless, client discards token
+   * 
+   * No server-side session to invalidate
+   * Client should remove token from localStorage
+   * 
+   * @returns Success message
    */
   logout: protectedProcedure.mutation(() => {
     return { success: true };
