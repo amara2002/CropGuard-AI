@@ -315,33 +315,32 @@ export default function Home() {
 
       {/* How It Works - 3-step user journey */}
       <section id="how-it-works" className="container py-20 scroll-mt-16">
-        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center mb-16">
-          <h2 className="text-4xl font-bold text-foreground mb-4">How It Works</h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Three simple steps to healthier crops and better harvests.
-          </p>
-        </motion.div>
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {[
-            { step: "01", title: "Upload Image", description: "Capture or upload a clear photo of the affected crop leaf", icon: Camera },
-            { step: "02", title: "AI Analysis", description: "Our AI model analyzes the image and identifies the disease with high accuracy", icon: Zap },
-            { step: "03", title: "Get Recommendations", description: "Receive treatment plans, fertilizer tips, and prevention measures", icon: TrendingUp },
-          ].map((item, idx) => (
-            <motion.div key={idx} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.15 }} className="relative">
-              <div className="card-elevated p-8 text-center h-full">
-                <div className="text-6xl font-black text-accent/10 mb-4">{item.step}</div>
-                <div className="bg-accent/10 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <item.icon className="w-8 h-8 text-accent" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground mb-3">{item.title}</h3>
-                <p className="text-muted-foreground">{item.description}</p>
-              </div>
-              {/* Connector line between steps */}
-              {idx < 2 && <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-accent/30 transform -translate-y-1/2" />}
-            </motion.div>
-          ))}
+  <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="text-center mb-16">
+    <h2 className="text-4xl font-bold text-foreground mb-4">How It Works</h2>
+    <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+      Three simple steps to healthier crops and better harvests.
+    </p>
+  </motion.div>
+  <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+    {[
+      { step: "01", title: "Upload Image", description: "Capture or upload a clear photo of the affected crop leaf", icon: Camera },
+      { step: "02", title: "AI Analysis", description: "Our AI model analyzes the image and identifies the disease with high accuracy", icon: Zap },
+      { step: "03", title: "Get Recommendations", description: "Receive treatment plans, fertilizer tips, and prevention measures", icon: TrendingUp },
+    ].map((item, idx) => (
+      <motion.div key={idx} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: idx * 0.15 }} className="relative">
+        <div className="card-elevated p-8 text-center h-full">
+          <div className="text-6xl font-black text-slate-200 mb-4">{item.step}</div>
+          <div className="bg-emerald-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <item.icon className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-3">{item.title}</h3>
+          <p className="text-muted-foreground">{item.description}</p>
         </div>
-      </section>
+        {idx < 2 && <div className="hidden md:block absolute top-1/2 -right-4 w-8 h-0.5 bg-emerald-200 transform -translate-y-1/2" />}
+      </motion.div>
+    ))}
+  </div>
+</section>
 
       {/* Testimonials - Social proof from real farmers */}
       <section id="testimonials" className="container py-20 scroll-mt-16">
