@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
-@plugin "tailwindcss-animate"; /* Use the correct plugin name here */
+@plugin "tailwindcss-animate"; 
 
 @custom-variant dark (&:is(.dark *));
 
